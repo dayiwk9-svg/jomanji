@@ -252,7 +252,11 @@ textarea.form-control{resize:vertical;min-height:80px;}
 <div id="screen-app" class="screen">
   <div class="header">
     <div><div class="header-title">🪷 浄満寺</div><div class="header-sub">門徒参り管理</div></div>
-    <button class="user-badge" id="user-badge-btn" onclick="doLogout()"></button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="sync-status" style="font-size:10px;display:none"></span>
+      <button class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 8px;color:var(--gold-light);border-color:#444" onclick="loadFromSheet()" title="最新データを取得">🔄</button>
+      <button class="user-badge" id="user-badge-btn" onclick="doLogout()"></button>
+    </div>
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="switchTab('schedule',this)"><span class="nav-tab-icon">📅</span>予定</button>
@@ -624,6 +628,78 @@ const TEMPLE_EVENT_TYPES = ["六藤会","坊守会","報恩講","僧侶研修会
 const STATUSES = ["予定","完了","変更","キャンセル"];
 const KAIKI_NAMES = {1:"一周忌",3:"三回忌",7:"七回忌",13:"十三回忌",17:"十七回忌",23:"二十三回忌",27:"二十七回忌",33:"三十三回忌",37:"三十七回忌",50:"五十回忌",100:"百回忌"};
 
+// ==================== GOOGLE SHEETS 連携 ====================
+// ▼ Apps Scriptデプロイ後にURLをここに貼り付けてください
+const GAS_URL = "https://script.google.com/macros/s/AKfycbxNT7PIuMo1SrouyNXKBWecFxrW2LwdONmecaTyZi1CQIr0DlpsRUIAySj4eUT594q5vg/exec";
+
+function gasEnabled(){ return !!GAS_URL; }
+
+// 同期状態表示
+function setSyncStatus(msg, isError=false){
+  const el=document.getElementById('sync-status');
+  if(!el)return;
+  el.textContent=msg;
+  el.style.color=isError?"#c0392b":"#2d5a27";
+  el.style.display=msg?"inline":"none";
+}
+
+// 全データ読み込み（起動時・手動更新）
+async function loadFromSheet(){
+  if(!gasEnabled())return;
+  setSyncStatus("🔄 読み込み中...");
+  try{
+    const res=await fetch(GAS_URL);
+    const json=await res.json();
+    if(!json.ok)throw new Error(json.error);
+    const d=json.data;
+    if(d.contacts&&d.contacts.length)    state.contacts    =d.contacts;
+    if(d.visits&&d.visits.length)        state.visits      =d.visits;
+    if(d.schedules&&d.schedules.length)  state.schedules   =d.schedules;
+    if(d.templeEvents&&d.templeEvents.length) state.templeEvents=d.templeEvents;
+    renderAll();
+    setSyncStatus("✓ 最新データを反映 "+new Date().toLocaleTimeString('ja-JP'));
+    setTimeout(()=>setSyncStatus(""),4000);
+  }catch(err){
+    setSyncStatus("⚠ 読み込みエラー: "+err.message, true);
+  }
+}
+
+// 1件保存
+async function saveToSheet(table, row){
+  if(!gasEnabled())return;
+  try{
+    await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"upsert",table,row})});
+  }catch(err){
+    console.warn("Sheet save error:", err);
+  }
+}
+
+// 1件削除
+async function deleteFromSheet(table, id){
+  if(!gasEnabled())return;
+  try{
+    await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"delete",table,id})});
+  }catch(err){
+    console.warn("Sheet delete error:", err);
+  }
+}
+
+// シート初期化（初回のみ）
+async function initSheets(){
+  if(!gasEnabled()){alert("GAS_URLが設定されていません");return;}
+  if(!confirm("スプレッドシートにシート（門徒・予定など）を作成します。よろしいですか？"))return;
+  setSyncStatus("🔄 シート初期化中...");
+  try{
+    const res=await fetch(GAS_URL,{method:"POST",body:JSON.stringify({action:"init",table:"_",row:{}})});
+    const json=await res.json();
+    if(!json.ok)throw new Error(json.error);
+    setSyncStatus("✓ シート初期化完了");
+    setTimeout(()=>setSyncStatus(""),3000);
+  }catch(err){
+    setSyncStatus("⚠ 初期化エラー: "+err.message,true);
+  }
+}
+
 // ==================== STATE ====================
 let state = {
   currentUser:"",
@@ -704,6 +780,7 @@ function doLogin(){
   document.getElementById('screen-login').classList.remove('active');
   document.getElementById('screen-app').classList.add('active');
   renderAll();
+  loadFromSheet(); // スプレッドシートから最新データを取得
 }
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==="Enter")doLogin();});
 document.getElementById('login-user').addEventListener('change',function(){this.style.color=this.value?"":"#888";});
@@ -1002,9 +1079,11 @@ function saveVisit(){
   const content=document.getElementById('v-content').value.trim();
   if(!contactId){alert("門徒を選択してください");return;}
   if(!content){alert("訪問内容を入力してください");return;}
-  state.visits.unshift({id:uid(),contactId,date:document.getElementById('v-date').value,
+  const visit={id:uid(),contactId,date:document.getElementById('v-date').value,
     type:getSelectedChip('v-type'),monk:getSelectedChip('v-monk'),content,
-    duration:parseInt(document.getElementById('v-duration').value)||null});
+    duration:parseInt(document.getElementById('v-duration').value)||null};
+  state.visits.unshift(visit);
+  saveToSheet("visits", visit);
   closeModal('modal-visit');renderAll();
 }
 
@@ -1034,10 +1113,12 @@ function saveSchedule(){
     status:getSelectedChip('s-status'),memo:document.getElementById('s-memo').value.trim()};
   if(state.editingScheduleId){state.schedules=state.schedules.map(x=>x.id===state.editingScheduleId?s:x);}
   else state.schedules.push(s);
+  saveToSheet("schedules", s);
   closeModal('modal-schedule');renderSchedule();renderCalendar();
 }
 function deleteSchedule(){
   if(!confirm("この予定を削除しますか？"))return;
+  deleteFromSheet("schedules", state.editingScheduleId);
   state.schedules=state.schedules.filter(s=>s.id!==state.editingScheduleId);
   closeModal('modal-schedule');renderSchedule();renderCalendar();
 }
@@ -1133,8 +1214,9 @@ function saveEventRecord(){
   if(!e.records)e.records=[];
   e.records.unshift({id:uid(),date:today(),monk:getSelectedChip('er-monk'),content});
   e.status="完了";
+  saveToSheet("templeEvents", e);
   closeModal('modal-event-record');
-  renderEvents();
+  renderEvents();renderCalendar();renderSchedule();
   openEventDetail(state.editingEventId);
 }
 
@@ -1170,12 +1252,14 @@ function saveEvent(){
   };
   if(state.editingEventId){state.templeEvents=state.templeEvents.map(x=>x.id===state.editingEventId?ev:x);}
   else state.templeEvents.push(ev);
-  closeModal('modal-event');renderEvents();
+  saveToSheet("templeEvents", ev);
+  closeModal('modal-event');renderEvents();renderCalendar();renderSchedule();
 }
 function deleteEvent(){
   if(!confirm("この行事を削除しますか？"))return;
+  deleteFromSheet("templeEvents", state.editingEventId);
   state.templeEvents=state.templeEvents.filter(e=>e.id!==state.editingEventId);
-  closeModal('modal-event');renderEvents();
+  closeModal('modal-event');renderEvents();renderCalendar();renderSchedule();
 }
 
 // ==================== CONTACT MODAL ====================
@@ -1238,6 +1322,7 @@ function saveContact(){
   };
   if(state.editingContactId){state.contacts=state.contacts.map(c=>c.id===state.editingContactId?contact:c);}
   else state.contacts.push(contact);
+  saveToSheet("contacts", contact);
   closeModal('modal-contact');renderContacts();
 }
 
