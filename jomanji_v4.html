@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<title>浄満寺 門徒参り管理 v3</title>
+<title>浄満寺 門徒参り管理 v4</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -239,10 +239,11 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <select id="login-user" class="login-input" style="color:#888">
       <option value="">選択してください</option>
       <option>道純</option><option>恭子</option><option>秀章</option>
-      <option>智子</option><option>大信</option><option>佳菜子</option>
+      <option>紘子</option><option>智子</option><option>佳菜子</option><option>大信</option>
     </select>
     <label class="login-label">パスワード</label>
-    <input id="login-pass" type="password" class="login-input" placeholder="パスワードを入力（デモ: 1234）">
+    <input id="login-pass" type="password" class="login-input" placeholder="パスワードを入力">
+    <div style="font-size:11px;color:#666;margin-bottom:8px">初回は共通の初期パスワードでログインしてください</div>
     <div id="login-err" class="login-err" style="display:none"></div>
     <button class="login-btn" onclick="doLogin()">ログイン</button>
   </div>
@@ -254,7 +255,9 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div><div class="header-title">🪷 浄満寺</div><div class="header-sub">門徒参り管理</div></div>
     <div style="display:flex;align-items:center;gap:8px">
       <span id="sync-status" style="font-size:10px;display:none"></span>
+      <button class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 8px;color:var(--gold-light);border-color:#444" onclick="exportBackup()" title="バックアップ">💾</button>
       <button class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 8px;color:var(--gold-light);border-color:#444" onclick="loadFromSheet()" title="最新データを取得">🔄</button>
+      <button class="btn btn-outline btn-sm" style="font-size:11px;padding:4px 8px;color:var(--gold-light);border-color:#444" onclick="openChangePw(state.currentUser,false)" title="パスワード変更">🔑</button>
       <button class="user-badge" id="user-badge-btn" onclick="doLogout()"></button>
     </div>
   </div>
@@ -620,9 +623,37 @@ textarea.form-control{resize:vertical;min-height:80px;}
 <!-- PRINT AREA -->
 <div id="print-area" class="print-only"></div>
 
+<!-- MODAL: パスワード変更 -->
+<div class="modal-overlay" id="modal-changepw">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="max-width:400px">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔑 パスワード変更</div>
+    <div id="cpw-forced-msg" style="display:none;background:#fff3e0;border:1px solid #ffcc02;border-radius:6px;padding:10px 12px;font-size:13px;color:#b26a00;margin-bottom:12px">
+      初期パスワードのままです。ログイン前に新しいパスワードを設定してください。
+    </div>
+    <div style="font-size:13px;color:var(--ink-light);margin-bottom:14px">
+      担当者: <strong id="cpw-user"></strong><br>
+      <span style="font-size:11px">8文字以上・英字／数字／記号のうち2種類以上</span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">新しいパスワード</label>
+      <input type="password" class="form-control" id="cpw-new" placeholder="新しいパスワード">
+    </div>
+    <div class="form-group">
+      <label class="form-label">確認（もう一度入力）</label>
+      <input type="password" class="form-control" id="cpw-confirm" placeholder="もう一度入力">
+    </div>
+    <div id="cpw-err" style="color:var(--red);font-size:12px;margin-bottom:8px"></div>
+    <div class="modal-btn-row">
+      <button class="btn btn-outline" id="cpw-cancel-btn" style="flex:1" onclick="closeChangePw()">キャンセル</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveChangePw()">変更する</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ==================== CONSTANTS ====================
-const MONKS = ["道純","恭子","秀章","智子","大信","佳菜子"];
+const MONKS = ["道純","恭子","秀章","紘子","智子","佳菜子","大信"];
 const VISIT_TYPES = ["月参り","法事","葬儀","お盆","彼岸","その他"];
 const TEMPLE_EVENT_TYPES = ["六藤会","坊守会","報恩講","僧侶研修会","組会","教区研修会","新年互例会","その他行事"];
 const STATUSES = ["予定","完了","変更","キャンセル"];
@@ -631,6 +662,97 @@ const KAIKI_NAMES = {1:"一周忌",3:"三回忌",7:"七回忌",13:"十三回忌"
 // ==================== GOOGLE SHEETS 連携 ====================
 // ▼ Apps Scriptデプロイ後にURLをここに貼り付けてください
 const GAS_URL = "https://script.google.com/macros/s/AKfycbxNT7PIuMo1SrouyNXKBWecFxrW2LwdONmecaTyZi1CQIr0DlpsRUIAySj4eUT594q5vg/exec";
+
+// ==================== パスワード管理 ====================
+const INITIAL_PASSWORD = "0666310996";
+const PW_STORAGE_KEY = "jomanji_pw_store";
+const PW_EXPIRE_DAYS = 90; // 3ヶ月
+
+function getPwStore(){
+  try{ return JSON.parse(localStorage.getItem(PW_STORAGE_KEY)||"{}"); }catch{ return {}; }
+}
+function setPwStore(store){ localStorage.setItem(PW_STORAGE_KEY, JSON.stringify(store)); }
+
+function getUserPwInfo(user){
+  const store = getPwStore();
+  return store[user] || { pw: INITIAL_PASSWORD, isInitial: true, setAt: null };
+}
+function setUserPw(user, pw){
+  const store = getPwStore();
+  store[user] = { pw, isInitial: false, setAt: new Date().toISOString() };
+  setPwStore(store);
+}
+function isPwExpired(user){
+  const info = getUserPwInfo(user);
+  if(info.isInitial || !info.setAt) return false; // 初期PWは期限なし（変更を促すだけ）
+  const setDate = new Date(info.setAt);
+  const now = new Date();
+  return (now - setDate) > PW_EXPIRE_DAYS * 24 * 60 * 60 * 1000;
+}
+function validatePw(pw){
+  // 8文字以上、英字・数字・記号のうち2種類以上
+  if(pw.length < 8) return "8文字以上で入力してください";
+  const hasAlpha = /[a-zA-Z]/.test(pw);
+  const hasNum = /[0-9]/.test(pw);
+  const hasSym = /[^a-zA-Z0-9]/.test(pw);
+  const types = [hasAlpha, hasNum, hasSym].filter(Boolean).length;
+  if(types < 2) return "英字・数字・記号のうち2種類以上を含めてください";
+  return null; // OK
+}
+
+// パスワード変更モーダルを開く
+function openChangePw(user, isForced=false){
+  document.getElementById('cpw-user').textContent = user;
+  document.getElementById('cpw-forced-msg').style.display = isForced ? 'block' : 'none';
+  document.getElementById('cpw-new').value = '';
+  document.getElementById('cpw-confirm').value = '';
+  document.getElementById('cpw-err').textContent = '';
+  document.getElementById('cpw-cancel-btn').style.display = isForced ? 'none' : 'inline-block';
+  state._cpwUser = user;
+  state._cpwForced = isForced;
+  document.getElementById('modal-changepw').classList.add('open');
+}
+function closeChangePw(){
+  document.getElementById('modal-changepw').classList.remove('open');
+}
+function saveChangePw(){
+  const user = state._cpwUser;
+  const newPw = document.getElementById('cpw-new').value;
+  const confirm2 = document.getElementById('cpw-confirm').value;
+  const errEl = document.getElementById('cpw-err');
+  if(newPw !== confirm2){ errEl.textContent = "パスワードが一致しません"; return; }
+  const err = validatePw(newPw);
+  if(err){ errEl.textContent = err; return; }
+  if(newPw === INITIAL_PASSWORD){ errEl.textContent = "初期パスワードは使用できません"; return; }
+  setUserPw(user, newPw);
+  closeChangePw();
+  // 強制変更後はそのままログイン続行
+  if(state._cpwForced){
+    proceedLogin(user);
+  }
+}
+
+// ==================== バックアップ ====================
+function exportBackup(){
+  const data = {
+    exportedAt: new Date().toISOString(),
+    contacts: state.contacts,
+    visits: state.visits,
+    schedules: state.schedules,
+    templeEvents: state.templeEvents
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type:"application/json;charset=utf-8;"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const d = new Date();
+  a.download = `jomanji_backup_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  setSyncStatus("✓ バックアップを保存しました");
+  setTimeout(()=>setSyncStatus(""),3000);
+}
 
 function gasEnabled(){ return !!GAS_URL; }
 
@@ -713,27 +835,13 @@ let state = {
   contacts:[
     {id:"c1",name:"田中家",kana:"たなかけ",zip:"530-0001",address:"大阪市北区梅田1-1",phone:"06-1234-5678",email:"",shu:"浄土真宗本願寺派",houmyo:"",haka:"○○霊園 A区15番",family:"世帯主（田中太郎）、妻（花子）",kinen:[{name:"田中一郎",date:"1990-03-15"}],notes:"玄関から入って正面に仏壇。",tags:["月参り"]},
     {id:"c2",name:"山本家",kana:"やまもとけ",zip:"541-0053",address:"大阪市中央区本町2-3",phone:"06-2345-6789",email:"",shu:"浄土真宗本願寺派",houmyo:"",haka:"大谷本廟 無量寿堂",family:"世帯主（山本次郎）、母（スミ・90歳）",kinen:[{name:"山本花子",date:"2023-03-18"}],notes:"お年寄りが多い。玄関から入ってすぐ仏壇。",tags:["月参り","法事"]},
-    {id:"c3",name:"佐藤家",kana:"さとうけ",zip:"550-0004",address:"大阪市西区靭本町1-5",phone:"06-3456-7890",email:"sato@example.com",shu:"浄土真宗本願寺派",houmyo:"",haka:"浄満寺境内墓地",family:"世帯主（佐藤三郎）、息子（健一・海外在住）",kinen:[{name:"佐藤ヨシ",date:"2019-11-20"}],notes:"息子さんが海外在住。",tags:["法事"]},
-    {id:"c4",name:"鈴木家",kana:"すずきけ",zip:"543-0001",address:"大阪市天王寺区上本町3-2",phone:"06-4567-8901",email:"",shu:"浄土真宗本願寺派",houmyo:"",haka:"",family:"世帯主（鈴木四郎）、妻（美代子）",kinen:[{name:"鈴木シズ",date:"2025-03-10"}],notes:"毎月第2土曜希望。",tags:["月参り"]},
   ],
   visits:[
     {id:"v1",contactId:"c1",date:"2026-02-10",type:"月参り",monk:"道純",content:"御文章を拝読。ご主人の体調についてお話。薬が変わったとのこと。奥様に阿弥陀様のご縁について少しお話しした。",duration:45},
-    {id:"v2",contactId:"c1",date:"2026-01-12",type:"月参り",monk:"秀章",content:"正月のお参り。新年の御挨拶。家族全員揃っておられた。息子さんが転職されたとのこと。",duration:60},
-    {id:"v3",contactId:"c2",date:"2026-02-14",type:"月参り",monk:"道純",content:"三回忌の打ち合わせ。来月18日に行う予定。参列者は20名程度とのこと。お料理の手配は自分たちでされる。",duration:50},
-    {id:"v4",contactId:"c3",date:"2025-11-20",type:"法事",monk:"道純",content:"七回忌法要。20名参列。息子さんもアメリカより帰国。法要後、親族で会食。御礼の品を頂いた。",duration:120},
-    {id:"v5",contactId:"c4",date:"2026-02-08",type:"月参り",monk:"秀章",content:"お母様の一周忌が近いとのこと。来月改めて法要を行う予定。日程は3月15日（土）に決定。",duration:40},
+    {id:"v2",contactId:"c2",date:"2026-03-01",type:"月参り",monk:"秀章",content:"三回忌の打ち合わせ。参列者は20名程度とのこと。お料理の手配は自分たちでされる。",duration:50},
   ],
-  schedules:[
-    {id:"s1",contactId:"c1",date:"2026-03-10",type:"月参り",monk:"道純",status:"予定",memo:""},
-    {id:"s2",contactId:"c2",date:"2026-03-18",type:"法事",monk:"道純",status:"予定",memo:"三回忌。参列者20名程度。"},
-    {id:"s3",contactId:"c4",date:"2026-03-15",type:"法事",monk:"秀章",status:"予定",memo:"お母様一周忌。"},
-    {id:"s4",contactId:"c2",date:"2026-03-12",type:"月参り",monk:"秀章",status:"予定",memo:""},
-  ],
-  templeEvents:[
-    {id:"te1",type:"六藤会",date:"2026-03-22",title:"六藤会 3月例会",place:"○○寺",attendees:["道純","秀章"],status:"予定",content:"",memo:"持ち回り担当：佐々木さん"},
-    {id:"te2",type:"報恩講",date:"2026-02-20",title:"△△寺 報恩講",place:"△△寺",attendees:["道純"],status:"完了",content:"ご法話は「往生浄土の意義」について。終了後、住職方と今後の組の運営について意見交換。次回の六藤会で議題として取り上げる予定。",memo:""},
-    {id:"te3",type:"僧侶研修会",date:"2026-04-05",title:"教区僧侶研修会",place:"本願寺大阪教区",attendees:["秀章","大信"],status:"予定",content:"",memo:"資格取得に向けた必須研修"},
-  ]
+  schedules:[],
+  templeEvents:[]
 };
 
 // ==================== UTILS ====================
@@ -766,21 +874,47 @@ function calcKaiki(kinenDate){
 
 // ==================== LOGIN ====================
 function doLogin(){
-  const user=document.getElementById('login-user').value;
-  const pass=document.getElementById('login-pass').value;
-  const err=document.getElementById('login-err');
-  if(!user){err.textContent="担当者を選択してください";err.style.display="block";return;}
-  if(pass!=="1234"){err.textContent="パスワードが違います（デモ: 1234）";err.style.display="block";return;}
+  const user = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-err');
+  if(!user){ err.textContent="担当者を選択してください"; err.style.display="block"; return; }
+  const info = getUserPwInfo(user);
+  if(pass !== info.pw){ err.textContent="パスワードが違います"; err.style.display="block"; return; }
   err.style.display="none";
-  state.currentUser=user;
-  const now=new Date();const day=now.getDay();const diff=day===0?-6:1-day;
-  const mon=new Date(now);mon.setDate(now.getDate()+diff);
-  state.calWeekStart=mon.toISOString().slice(0,10);
-  document.getElementById('user-badge-btn').textContent=user+" ▾";
+  // 初期PWのままなら変更を強制
+  if(info.isInitial){
+    state._pendingLoginUser = user;
+    openChangePw(user, true);
+    return;
+  }
+  // パスワード期限切れ
+  if(isPwExpired(user)){
+    state._pendingLoginUser = user;
+    openChangePw(user, true);
+    document.getElementById('cpw-forced-msg').textContent = "パスワードの有効期限（90日）が切れました。新しいパスワードを設定してください。";
+    return;
+  }
+  proceedLogin(user);
+}
+function proceedLogin(user){
+  state.currentUser = user;
+  const now=new Date(); const day=now.getDay(); const diff=day===0?-6:1-day;
+  const mon=new Date(now); mon.setDate(now.getDate()+diff);
+  state.calWeekStart = mon.toISOString().slice(0,10);
+  document.getElementById('user-badge-btn').textContent = user+" ▾";
   document.getElementById('screen-login').classList.remove('active');
   document.getElementById('screen-app').classList.add('active');
   renderAll();
-  loadFromSheet(); // スプレッドシートから最新データを取得
+  loadFromSheet();
+  // 期限まで30日以内なら警告
+  const info = getUserPwInfo(user);
+  if(!info.isInitial && info.setAt){
+    const setDate = new Date(info.setAt);
+    const daysLeft = PW_EXPIRE_DAYS - Math.floor((new Date()-setDate)/(24*60*60*1000));
+    if(daysLeft <= 30){
+      setTimeout(()=>setSyncStatus(`⚠ パスワードの有効期限まで残り${daysLeft}日です`, true), 2000);
+    }
+  }
 }
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==="Enter")doLogin();});
 document.getElementById('login-user').addEventListener('change',function(){this.style.color=this.value?"":"#888";});
