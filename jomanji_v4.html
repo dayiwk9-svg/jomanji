@@ -202,6 +202,11 @@ textarea.form-control{resize:vertical;min-height:80px;}
 .cal-event-temple{background:#e8d5f5;color:#6a0dad;font-size:9px;}
 .week-event-temple{border-left:3px solid #9b59b6;background:#f5eeff;}
 .badge-temple{background:#e8d5f5;color:#6a0dad;}
+.attach-row{display:flex;gap:6px;align-items:center;margin-bottom:6px;}
+.attach-row .form-control{flex:1;font-size:13px;padding:6px 8px;}
+.attach-label{font-size:11px;color:var(--ink-light);white-space:nowrap;}
+.attach-link{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--gold);text-decoration:none;padding:3px 8px;border:1px solid var(--border);border-radius:4px;margin:2px 2px 2px 0;background:var(--paper-warm);}
+.attach-link:hover{background:var(--gold-pale);}
 
 /* CONTACTS TABLE */
 .contact-table-wrap{overflow-x:auto;margin-bottom:12px;}
@@ -373,6 +378,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
     </div>
     <div id="detail-info" style="font-size:12px;color:var(--ink-light);margin-bottom:10px;line-height:1.8"></div>
     <div id="detail-notes" class="note-box" style="display:none"></div>
+    <div id="detail-attachments"></div>
     <div id="detail-kinen"></div>
     <div id="detail-schedules"></div>
     <div style="display:flex;gap:8px;margin:12px 0">
@@ -416,6 +422,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <label class="form-label">訪問内容・話した内容 ＊</label>
       <textarea class="form-control" id="v-content" style="min-height:120px" placeholder="読経の内容、お話しした内容、気になったことなど..."></textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label">📎 添付リンク（朗読法話・レジュメ・写真など　最大3件）</label>
+      <div id="v-attach-rows"></div>
+    </div>
     <div class="modal-btn-row">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-visit')">キャンセル</button>
       <button class="btn btn-primary" style="flex:2" onclick="saveVisit()">保存する</button>
@@ -451,6 +461,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div class="form-group">
       <label class="form-label">メモ</label>
       <textarea class="form-control" id="s-memo" placeholder="参列者数、法要の詳細など..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">📎 添付リンク（レジュメ・資料など　最大3件）</label>
+      <div id="s-attach-rows"></div>
     </div>
     <div class="modal-btn-row">
       <button class="btn btn-danger btn-sm" id="s-delete-btn" onclick="deleteSchedule()" style="display:none">削除</button>
@@ -531,6 +545,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <label class="form-label">備考・特記事項</label>
       <textarea class="form-control" id="c-notes" placeholder="玄関から入って左に仏壇。ご主人は足が悪い。"></textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label">📎 添付リンク（外観写真・地図など　最大3件）</label>
+      <div id="c-attach-rows"></div>
+    </div>
 
     <div class="modal-btn-row">
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-contact')">戻る</button>
@@ -574,6 +592,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <label class="form-label">メモ・備考</label>
       <textarea class="form-control" id="e-memo" placeholder="持ち物、担当、事前準備など..."></textarea>
     </div>
+    <div class="form-group">
+      <label class="form-label">📎 添付リンク（配布資料・会場写真など　最大3件）</label>
+      <div id="e-attach-rows"></div>
+    </div>
     <div class="modal-btn-row">
       <button class="btn btn-danger btn-sm" id="e-delete-btn" onclick="deleteEvent()" style="display:none">削除</button>
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-event')">戻る</button>
@@ -594,6 +616,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <button class="btn btn-outline btn-sm" onclick="editEventDetail()">編集</button>
     </div>
     <div id="evd-memo" class="note-box" style="display:none"></div>
+    <div id="evd-attachments"></div>
     <div id="evd-records"></div>
     <button class="btn btn-primary btn-full" style="margin:12px 0 4px" id="evd-add-record-btn">＋ 内容を記録する</button>
     <button class="btn btn-outline btn-full" onclick="closeModal('modal-event-detail')">閉じる</button>
@@ -849,10 +872,51 @@ function today(){return new Date().toISOString().slice(0,10);}
 function fmtDate(d){if(!d)return"";const dt=new Date(d);return`${dt.getMonth()+1}月${dt.getDate()}日`;}
 function fmtFull(d){if(!d)return"";const dt=new Date(d);return`${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function getContact(id){return state.contacts.find(c=>c.id===id)||{name:"不明",address:"",kana:"",zip:"",phone:"",email:"",shu:"",houmyo:"",haka:"",family:"",kinen:[],notes:"",tags:[]};}
+function getContact(id){return state.contacts.find(c=>c.id===id)||{name:"不明",address:"",kana:"",zip:"",phone:"",email:"",shu:"",houmyo:"",haka:"",family:"",kinen:[],notes:"",tags:[],attachments:[]};}
 function getVisitsByContact(cid){return[...state.visits].filter(v=>v.contactId===cid).sort((a,b)=>b.date.localeCompare(a.date));}
 function badgeClass(type){return type==="月参り"?"badge-monthly":type==="法事"?"badge-hooji":"badge-other";}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+// ==================== 添付リンク ====================
+const ATTACH_PLACEHOLDERS = [
+  {label:"朗読法話", url:"GoogleドライブのURLを貼り付け"},
+  {label:"レジュメ・資料", url:"GoogleドライブのURLを貼り付け"},
+  {label:"写真・地図", url:"GoogleドライブのURLを貼り付け"},
+];
+function renderAttachRows(containerId, attachments=[]){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+  const rows = [0,1,2].map(i=>{
+    const a = attachments[i] || {};
+    const ph = ATTACH_PLACEHOLDERS[i];
+    return `<div class="attach-row">
+      <span class="attach-label">${i+1}.</span>
+      <input class="form-control" style="flex:0.7;min-width:0" placeholder="${ph.label}" value="${esc(a.label||'')}" data-attach-label="${i}" data-container="${containerId}">
+      <input class="form-control" style="flex:1.3;min-width:0" placeholder="URL" value="${esc(a.url||'')}" data-attach-url="${i}" data-container="${containerId}">
+    </div>`;
+  });
+  container.innerHTML = rows.join('');
+}
+function getAttachments(containerId){
+  const container = document.getElementById(containerId);
+  if(!container) return [];
+  const result = [];
+  for(let i=0;i<3;i++){
+    const labelEl = container.querySelector(`[data-attach-label="${i}"]`);
+    const urlEl   = container.querySelector(`[data-attach-url="${i}"]`);
+    const label = labelEl?.value.trim()||'';
+    const url   = urlEl?.value.trim()||'';
+    if(label||url) result.push({label, url});
+  }
+  return result;
+}
+function renderAttachLinks(attachments){
+  if(!attachments||!attachments.length) return '';
+  return `<div style="margin-top:6px">`+
+    attachments.filter(a=>a.url).map(a=>
+      `<a class="attach-link" href="${esc(a.url)}" target="_blank" rel="noopener">📎 ${esc(a.label||'添付ファイル')}</a>`
+    ).join('')+`</div>`;
+}
 
 // 年忌計算
 function calcKaiki(kinenDate){
@@ -1025,6 +1089,7 @@ function schedCard(s,faded){
         </div>
         <div class="scard-monk">担当: ${esc(s.monk)}</div>
         ${s.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(s.memo)}</div>`:""}
+        ${renderAttachLinks(s.attachments)}
         ${prev}
       </div>
     </div>
@@ -1127,6 +1192,12 @@ function openDetail(cid){
   if(c.notes){notesEl.innerHTML="📝 "+esc(c.notes);notesEl.style.display="block";}
   else notesEl.style.display="none";
 
+  // 添付リンク
+  const attachEl=document.getElementById('detail-attachments');
+  const aLinks=renderAttachLinks(c.attachments);
+  if(aLinks){attachEl.innerHTML=`<div style="margin-bottom:8px">${aLinks}</div>`;attachEl.style.display="block";}
+  else attachEl.style.display="none";
+
   // 年忌
   let kinenHtml="";
   (c.kinen||[]).forEach(k=>{
@@ -1155,7 +1226,7 @@ function openDetail(cid){
 
   let histHtml=cv.length>0
     ?`<div class="section-title" style="margin-top:16px">参拝記録（${cv.length}件）</div>`
-      +cv.map(v=>`<div class="hist-item"><div class="hist-meta">${fmtFull(v.date)} ｜ ${v.type} ｜ 担当: ${esc(v.monk)}${v.duration?` ｜ ${v.duration}分`:""}</div><div class="hist-content">${esc(v.content)}</div></div>`).join("")
+      +cv.map(v=>`<div class="hist-item"><div class="hist-meta">${fmtFull(v.date)} ｜ ${v.type} ｜ 担当: ${esc(v.monk)}${v.duration?` ｜ ${v.duration}分`:""}</div><div class="hist-content">${esc(v.content)}</div>${renderAttachLinks(v.attachments)}</div>`).join("")
     :`<div class="empty"><div class="empty-icon">📖</div><div>まだ記録がありません</div></div>`;
   document.getElementById('detail-history').innerHTML=histHtml;
   openModal('modal-detail');
@@ -1202,6 +1273,7 @@ function openVisitModal(contactId,visitId,prefill){
   document.getElementById('v-content').value="";
   makeChips('v-type-chips',VISIT_TYPES,prefill?.type||"月参り",()=>{},'v-type');
   makeChips('v-monk-chips',MONKS,prefill?.monk||state.currentUser,()=>{},'v-monk');
+  renderAttachRows('v-attach-rows', prefill?.attachments||[]);
   openModal('modal-visit');
 }
 function openVisitFromSched(sid){
@@ -1215,7 +1287,8 @@ function saveVisit(){
   if(!content){alert("訪問内容を入力してください");return;}
   const visit={id:uid(),contactId,date:document.getElementById('v-date').value,
     type:getSelectedChip('v-type'),monk:getSelectedChip('v-monk'),content,
-    duration:parseInt(document.getElementById('v-duration').value)||null};
+    duration:parseInt(document.getElementById('v-duration').value)||null,
+    attachments:getAttachments('v-attach-rows')};
   state.visits.unshift(visit);
   saveToSheet("visits", visit);
   closeModal('modal-visit');renderAll();
@@ -1235,6 +1308,7 @@ function openScheduleModal(idOrObj){
   makeChips('s-type-chips',VISIT_TYPES,s?.type||"月参り",()=>{},'s-type');
   makeChips('s-monk-chips',MONKS,s?.monk||state.currentUser,()=>{},'s-monk');
   makeChips('s-status-chips',STATUSES,s?.status||"予定",()=>{},'s-status');
+  renderAttachRows('s-attach-rows', s?.attachments||[]);
   openModal('modal-schedule');
 }
 function saveSchedule(){
@@ -1244,7 +1318,8 @@ function saveSchedule(){
   if(!date){alert("日付を入力してください");return;}
   const s={id:state.editingScheduleId||uid(),contactId,date,
     type:getSelectedChip('s-type'),monk:getSelectedChip('s-monk'),
-    status:getSelectedChip('s-status'),memo:document.getElementById('s-memo').value.trim()};
+    status:getSelectedChip('s-status'),memo:document.getElementById('s-memo').value.trim(),
+    attachments:getAttachments('s-attach-rows')};
   if(state.editingScheduleId){state.schedules=state.schedules.map(x=>x.id===state.editingScheduleId?s:x);}
   else state.schedules.push(s);
   saveToSheet("schedules", s);
@@ -1320,6 +1395,11 @@ function openEventDetail(eid){
   const memoEl=document.getElementById('evd-memo');
   if(e.memo){memoEl.innerHTML="📝 "+esc(e.memo);memoEl.style.display="block";}
   else memoEl.style.display="none";
+  // 添付リンク
+  const attachEl=document.getElementById('evd-attachments');
+  const aLinks=renderAttachLinks(e.attachments);
+  if(aLinks){attachEl.innerHTML=`<div style="margin-bottom:8px">${aLinks}</div>`;attachEl.style.display="block";}
+  else attachEl.style.display="none";
   const recs=e.records||[];
   document.getElementById('evd-records').innerHTML=recs.length>0
     ?`<div class="section-title" style="margin-top:12px">記録（${recs.length}件）</div>`
@@ -1366,6 +1446,7 @@ function openEventModal(idOrNull){
   makeChips('e-type-chips',TEMPLE_EVENT_TYPES,e?.type||"六藤会",()=>{},'e-type');
   makeChips('e-attendees-chips',MONKS,e?.attendees||[state.currentUser],()=>{},'e-attendees',true);
   makeChips('e-status-chips',STATUSES,e?.status||"予定",()=>{},'e-status');
+  renderAttachRows('e-attach-rows', e?.attachments||[]);
   openModal('modal-event');
 }
 function saveEvent(){
@@ -1382,6 +1463,7 @@ function saveEvent(){
     attendees:getSelectedChips('e-attendees'),
     status:getSelectedChip('e-status'),
     memo:document.getElementById('e-memo').value.trim(),
+    attachments:getAttachments('e-attach-rows'),
     records:existing?.records||[]
   };
   if(state.editingEventId){state.templeEvents=state.templeEvents.map(x=>x.id===state.editingEventId?ev:x);}
@@ -1434,6 +1516,7 @@ function openContactModal(c){
   document.getElementById('c-notes').value=c?.notes||"";
   makeChips('c-tag-chips',["月参り","法事","葬儀","お盆"],c?.tags||[],()=>{},'c-tags',true);
   renderKinenRows();
+  renderAttachRows('c-attach-rows', c?.attachments||[]);
   openModal('modal-contact');
 }
 function saveContact(){
@@ -1452,7 +1535,8 @@ function saveContact(){
     family:document.getElementById('c-family').value.trim(),
     kinen:state.kinenRows.filter(r=>r.name).map(r=>({name:r.name,date:r.date})),
     notes:document.getElementById('c-notes').value.trim(),
-    tags:getSelectedChips('c-tags')
+    tags:getSelectedChips('c-tags'),
+    attachments:getAttachments('c-attach-rows')
   };
   if(state.editingContactId){state.contacts=state.contacts.map(c=>c.id===state.editingContactId?contact:c);}
   else state.contacts.push(contact);
