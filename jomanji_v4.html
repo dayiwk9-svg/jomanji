@@ -267,16 +267,16 @@ textarea.form-control{resize:vertical;min-height:80px;}
     </div>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="switchTab('schedule',this)"><span class="nav-tab-icon">📅</span>予定</button>
-    <button class="nav-tab" onclick="switchTab('calendar',this)"><span class="nav-tab-icon">🗓️</span>暦</button>
-    <button class="nav-tab" onclick="switchTab('contacts',this)"><span class="nav-tab-icon">🏠</span>門徒</button>
+    <button class="nav-tab active" onclick="switchTab('calendar',this)"><span class="nav-tab-icon">🗓️</span>カレンダー</button>
+    <button class="nav-tab" onclick="switchTab('schedule',this)"><span class="nav-tab-icon">📅</span>予定</button>
     <button class="nav-tab" onclick="switchTab('events',this)"><span class="nav-tab-icon">🏯</span>行事</button>
     <button class="nav-tab" onclick="switchTab('history',this)"><span class="nav-tab-icon">📖</span>記録</button>
     <button class="nav-tab" onclick="openVisitModal(null,null)"><span class="nav-tab-icon">✏️</span>記録追加</button>
+    <button class="nav-tab" onclick="switchTab('contacts',this)"><span class="nav-tab-icon">🏠</span>門徒</button>
   </div>
 
   <!-- TAB: SCHEDULE -->
-  <div id="tab-schedule" class="tab-content active">
+  <div id="tab-schedule" class="tab-content">
     <div class="flex-between">
       <div class="chip-row">
         <div class="chip selected" id="filter-all" onclick="setFilter('all')">全員</div>
@@ -289,7 +289,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
   </div>
 
   <!-- TAB: CALENDAR -->
-  <div id="tab-calendar" class="tab-content">
+  <div id="tab-calendar" class="tab-content active">
     <div class="cal-nav">
       <button class="cal-nav-btn" onclick="calMove(-1)">&#8249;</button>
       <div class="cal-nav-title" id="cal-title"></div>
@@ -483,7 +483,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div class="section-title">基本情報</div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">お名前（家名）＊</label>
+        <label class="form-label">お名前＊</label>
         <input class="form-control" id="c-name" placeholder="例：田中家">
       </div>
       <div class="form-group">
@@ -856,8 +856,8 @@ let state = {
   editingScheduleId:null,editingContactId:null,detailContactId:null,editingEventId:null,
   kinenRows:[],
   contacts:[
-    {id:"c1",name:"田中家",kana:"たなかけ",zip:"530-0001",address:"大阪市北区梅田1-1",phone:"06-1234-5678",email:"",shu:"浄土真宗本願寺派",houmyo:"",haka:"○○霊園 A区15番",family:"世帯主（田中太郎）、妻（花子）",kinen:[{name:"田中一郎",date:"1990-03-15"}],notes:"玄関から入って正面に仏壇。",tags:["月参り"]},
-    {id:"c2",name:"山本家",kana:"やまもとけ",zip:"541-0053",address:"大阪市中央区本町2-3",phone:"06-2345-6789",email:"",shu:"浄土真宗本願寺派",houmyo:"",haka:"大谷本廟 無量寿堂",family:"世帯主（山本次郎）、母（スミ・90歳）",kinen:[{name:"山本花子",date:"2023-03-18"}],notes:"お年寄りが多い。玄関から入ってすぐ仏壇。",tags:["月参り","法事"]},
+    {id:"c1",name:"田中家",kana:"たなかけ",zip:"530-0001",address:"大阪市北区梅田1-1",phone:"06-1234-5678",email:"",shu:"浄土真宗本願寺派",houmyo:"",haka:"○○霊園 A区15番",family:"世帯主（田中太郎）、妻（花子）",kinen:[{name:"田中一郎",date:"1990-03-15"}],notes:"玄関から入って正面に仏壇。",tags:[]},
+    {id:"c2",name:"山本家",kana:"やまもとけ",zip:"541-0053",address:"大阪市中央区本町2-3",phone:"06-2345-6789",email:"",shu:"浄土真宗本願寺派",houmyo:"",haka:"大谷本廟 無量寿堂",family:"世帯主（山本次郎）、母（スミ・90歳）",kinen:[{name:"山本花子",date:"2023-03-18"}],notes:"お年寄りが多い。玄関から入ってすぐ仏壇。",tags:[]},
   ],
   visits:[
     {id:"v1",contactId:"c1",date:"2026-02-10",type:"月参り",monk:"道純",content:"御文章を拝読。ご主人の体調についてお話。薬が変わったとのこと。奥様に阿弥陀様のご縁について少しお話しした。",duration:45},
@@ -1515,7 +1515,7 @@ function openContactModal(c){
   document.getElementById('c-haka').value=c?.haka||"";
   document.getElementById('c-family').value=c?.family||"";
   document.getElementById('c-notes').value=c?.notes||"";
-  makeChips('c-tag-chips',["月参り","法事","葬儀","お盆"],c?.tags||[],()=>{},'c-tags',true);
+  makeChips('c-tag-chips',[],c?.tags||[],()=>{},'c-tags',true);
   renderKinenRows();
   renderAttachRows('c-attach-rows', c?.attachments||[]);
   openModal('modal-contact');
@@ -1765,7 +1765,7 @@ function printList(){
     tr:nth-child(even) td{background:#f8f8f8;}
     @page{margin:10mm;size:A4 landscape;}</style></head><body>
     <h2>浄満寺 門徒名簿　${new Date().getFullYear()}年${new Date().getMonth()+1}月${new Date().getDate()}日現在</h2>
-    <table><tr><th>家名</th><th>よみがな</th><th>住所</th><th>電話</th><th>メール</th><th>宗派</th><th>法名</th><th>墓地・納骨場所</th><th>命日・年忌</th><th>備考</th></tr>${rows}</table>
+    <table><tr><th>お名前</th><th>よみがな</th><th>住所</th><th>電話</th><th>メール</th><th>宗派</th><th>法名</th><th>墓地・納骨場所</th><th>命日・年忌</th><th>備考</th></tr>${rows}</table>
     </body></html>`;
   const w=window.open('','_blank');w.document.write(html);w.document.close();w.print();
 }
@@ -1773,7 +1773,7 @@ function printList(){
 // ==================== EXCEL EXPORT ====================
 function exportExcel(){
   const list=getSortedContacts();
-  const header=["家名","よみがな","郵便番号","住所","電話番号","メールアドレス","宗派","法名","墓地・納骨場所","家族構成","命日・故人名","備考","タグ"];
+  const header=["お名前","よみがな","郵便番号","住所","電話番号","メールアドレス","宗派","法名","墓地・納骨場所","家族構成","命日・故人名","備考","タグ"];
   const rows=list.map(c=>[
     c.name,c.kana||"",c.zip||"",c.address||"",c.phone||"",c.email||"",
     c.shu||"",c.houmyo||"",c.haka||"",c.family||"",
