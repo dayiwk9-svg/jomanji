@@ -676,7 +676,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
 
 <script>
 // ==================== CONSTANTS ====================
-const MONKS = ["道純","恭子","秀章","紘子","智子","佳菜子","大信"];
+const MONKS = ["全員","道純","恭子","秀章","紘子","智子","佳菜子","大信"];
 const VISIT_TYPES = ["月参り","法事","葬儀","お盆","彼岸","その他"];
 const TEMPLE_EVENT_TYPES = ["六藤会","坊守会","報恩講","僧侶研修会","組会","教区研修会","新年互例会","その他行事"];
 const STATUSES = ["予定","完了","変更","キャンセル"];
@@ -797,10 +797,14 @@ async function loadFromSheet(){
     const json=await res.json();
     if(!json.ok)throw new Error(json.error);
     const d=json.data;
-    if(d.contacts&&d.contacts.length)    state.contacts    =d.contacts;
-    if(d.visits&&d.visits.length)        state.visits      =d.visits.map(v=>({...v,date:normDate(v.date)}));
-    if(d.schedules&&d.schedules.length)  state.schedules   =d.schedules.map(s=>({...s,date:normDate(s.date)}));
-    if(d.templeEvents&&d.templeEvents.length) state.templeEvents=d.templeEvents.map(e=>({...e,date:normDate(e.date)}));
+    if(d.contacts&&d.contacts.length)    state.contacts    =d.contacts.map(c=>({...c,
+      kinen:parseField(c.kinen,[]),tags:parseField(c.tags,[]),attachments:parseField(c.attachments,[])}));
+    if(d.visits&&d.visits.length)        state.visits      =d.visits.map(v=>({...v,date:normDate(v.date),
+      attachments:parseField(v.attachments,[])}));
+    if(d.schedules&&d.schedules.length)  state.schedules   =d.schedules.map(s=>({...s,date:normDate(s.date),
+      attachments:parseField(s.attachments,[])}));
+    if(d.templeEvents&&d.templeEvents.length) state.templeEvents=d.templeEvents.map(e=>({...e,date:normDate(e.date),
+      attendees:parseField(e.attendees,[]),attachments:parseField(e.attachments,[]),records:parseField(e.records,[])}));
     renderAll();
     setSyncStatus("✓ 最新データを反映 "+new Date().toLocaleTimeString('ja-JP'));
     setTimeout(()=>setSyncStatus(""),4000);
@@ -870,8 +874,10 @@ let state = {
 // ==================== UTILS ====================
 function today(){return new Date().toISOString().slice(0,10);}
 function normDate(d){if(!d)return"";return String(d).replace(/\//g,"-").slice(0,10);}
-function fmtDate(d){if(!d)return"";const dt=new Date(d);return`${dt.getMonth()+1}月${dt.getDate()}日`;}
-function fmtFull(d){if(!d)return"";const dt=new Date(d);return`${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;}
+function parseLocalDate(d){if(!d)return null;const p=String(d).slice(0,10).split("-");return p.length===3?{y:+p[0],m:+p[1],day:+p[2]}:null;}
+function parseField(v,def){if(v===null||v===undefined||v==="")return def;if(typeof v==="string"){try{return JSON.parse(v);}catch(e){return def;}}return v;}
+function fmtDate(d){const p=parseLocalDate(d);if(!p)return"";return`${p.m}月${p.day}日`;}
+function fmtFull(d){const p=parseLocalDate(d);if(!p)return"";return`${p.y}年${p.m}月${p.day}日`;}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function getContact(id){return state.contacts.find(c=>c.id===id)||{name:"不明",address:"",kana:"",zip:"",phone:"",email:"",shu:"",houmyo:"",haka:"",family:"",kinen:[],notes:"",tags:[],attachments:[]};}
 function getVisitsByContact(cid){return[...state.visits].filter(v=>v.contactId===cid).sort((a,b)=>b.date.localeCompare(a.date));}
@@ -922,16 +928,15 @@ function renderAttachLinks(attachments){
 // 年忌計算
 function calcKaiki(kinenDate){
   if(!kinenDate)return null;
-  const d=new Date(kinenDate);
+  const p=parseLocalDate(kinenDate);
+  if(!p)return null;
   const now=new Date();
-  const diff=now.getFullYear()-d.getFullYear();
-  // 今年・来年の年忌を探す
   const results=[];
   for(const [yr,nm] of Object.entries(KAIKI_NAMES)){
     const y=parseInt(yr);
-    const targetYear=d.getFullYear()+y;
-    if(targetYear>=now.getFullYear()-0&&targetYear<=now.getFullYear()+1){
-      results.push({year:targetYear,kaiki:nm,month:d.getMonth()+1,day:d.getDate()});
+    const targetYear=p.y+y;
+    if(targetYear>=now.getFullYear()&&targetYear<=now.getFullYear()+1){
+      results.push({year:targetYear,kaiki:nm,month:p.m,day:p.day});
     }
   }
   return results;
@@ -1077,11 +1082,11 @@ function schedCard(s,faded){
   const c=getContact(s.contactId);
   const cv=getVisitsByContact(s.contactId);
   const last=cv[0];
-  const dt=new Date(s.date);
+  const dp=parseLocalDate(s.date);
   const prev=last?`<div class="scard-prev">📖 前回 ${fmtDate(last.date)}（${esc(last.monk)}）: ${esc(last.content.slice(0,40))}…</div>`:"";
   return`<div class="card${faded?" faded":""}">
     <div class="scard">
-      <div class="scard-date"><div class="scard-day">${dt.getDate()}</div><div class="scard-month">${dt.getMonth()+1}月</div></div>
+      <div class="scard-date"><div class="scard-day">${dp?dp.day:""}</div><div class="scard-month">${dp?dp.m+"月":""}</div></div>
       <div class="scard-info">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
           <span class="scard-name" onclick="openDetail('${s.contactId}')">${esc(c.name)}</span>
@@ -1358,13 +1363,13 @@ function renderEvents(){
   document.getElementById('events-list').innerHTML=html;
 }
 function eventCard(e,faded){
-  const dt=new Date(e.date);
+  const dp=parseLocalDate(e.date);
   const recs=(e.records||[]);
   const hasRecord=recs.length>0;
   const attendeeStr=(e.attendees||[]).join("・")||"未定";
   return`<div class="card${faded?" faded":""}">
     <div class="scard">
-      <div class="scard-date"><div class="scard-day">${dt.getDate()}</div><div class="scard-month">${dt.getMonth()+1}月</div></div>
+      <div class="scard-date"><div class="scard-day">${dp?dp.day:""}</div><div class="scard-month">${dp?dp.m+"月":""}</div></div>
       <div class="scard-info">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
           <span style="font-weight:600;font-size:15px;cursor:pointer" onclick="openEventDetail('${e.id}')">${esc(e.title)}</span>
