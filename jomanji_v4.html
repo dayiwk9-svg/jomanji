@@ -447,6 +447,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <input type="date" class="form-control" id="s-date">
     </div>
     <div class="form-group">
+      <label class="form-label">時間（任意）</label>
+      <input type="time" class="form-control" id="s-time" placeholder="例：14:00">
+    </div>
+    <div class="form-group">
       <label class="form-label">種別</label>
       <div class="chip-row" id="s-type-chips"></div>
     </div>
@@ -576,6 +580,12 @@ textarea.form-control{resize:vertical;min-height:80px;}
         <input type="date" class="form-control" id="e-date">
       </div>
       <div class="form-group">
+        <label class="form-label">時間（任意）</label>
+        <input type="time" class="form-control" id="e-time">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:2">
         <label class="form-label">場所</label>
         <input class="form-control" id="e-place" placeholder="○○寺、教区会館 など">
       </div>
@@ -1093,7 +1103,7 @@ function schedCard(s,faded){
           <span class="badge ${badgeClass(s.type)}">${s.type}</span>
           <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}">${s.status||'予定'}</span>
         </div>
-        <div class="scard-monk">担当: ${esc(s.monk)}</div>
+        <div class="scard-monk">担当: ${esc(s.monk)}${s.time?`　🕐 ${s.time}`:""}</div>
         ${s.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(s.memo)}</div>`:""}
         ${renderAttachLinks(s.attachments)}
         ${prev}
@@ -1310,6 +1320,7 @@ function openScheduleModal(idOrObj){
   sel.innerHTML=`<option value="">選択してください</option>`
     +state.contacts.map(c=>`<option value="${c.id}"${c.id===s?.contactId?" selected":""}>${esc(c.name)}</option>`).join("");
   document.getElementById('s-date').value=normDate(s?.date)||"";
+  document.getElementById('s-time').value=s?.time||"";
   document.getElementById('s-memo').value=s?.memo||"";
   makeChips('s-type-chips',VISIT_TYPES,s?.type||"月参り",()=>{},'s-type');
   makeChips('s-monk-chips',MONKS,s?.monk||state.currentUser,()=>{},'s-monk');
@@ -1323,6 +1334,7 @@ function saveSchedule(){
   if(!contactId){alert("門徒を選択してください");return;}
   if(!date){alert("日付を入力してください");return;}
   const s={id:state.editingScheduleId||uid(),contactId,date,
+    time:document.getElementById('s-time').value||"",
     type:getSelectedChip('s-type'),monk:getSelectedChip('s-monk'),
     status:getSelectedChip('s-status'),memo:document.getElementById('s-memo').value.trim(),
     attachments:getAttachments('s-attach-rows')};
@@ -1377,7 +1389,7 @@ function eventCard(e,faded){
           <span class="badge ${e.status==='完了'?'badge-done':'badge-scheduled'}">${e.status||'予定'}</span>
         </div>
         ${e.place?`<div style="font-size:12px;color:var(--ink-light)">📍 ${esc(e.place)}</div>`:""}
-        <div style="font-size:12px;color:var(--gold);margin-top:2px">参加: ${esc(attendeeStr)}</div>
+        <div style="font-size:12px;color:var(--gold);margin-top:2px">参加: ${esc(attendeeStr)}${e.time?`　🕐 ${e.time}`:""}</div>
         ${e.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:2px">${esc(e.memo)}</div>`:""}
         ${hasRecord?`<div style="font-size:11px;color:var(--green);margin-top:4px">📝 記録あり（${recs.length}件）</div>`:""}
         ${renderAttachLinks(e.attachments)}
@@ -1448,6 +1460,7 @@ function openEventModal(idOrNull){
   document.getElementById('e-delete-btn').style.display=e?.id?"":"none";
   document.getElementById('e-title').value=e?.title||"";
   document.getElementById('e-date').value=normDate(e?.date)||"";
+  document.getElementById('e-time').value=e?.time||"";
   document.getElementById('e-place').value=e?.place||"";
   document.getElementById('e-memo').value=e?.memo||"";
   makeChips('e-type-chips',TEMPLE_EVENT_TYPES,e?.type||"六藤会",()=>{},'e-type');
@@ -1465,6 +1478,7 @@ function saveEvent(){
   const ev={
     id:state.editingEventId||uid(),
     title,date,
+    time:document.getElementById('e-time').value||"",
     type:getSelectedChip('e-type'),
     place:document.getElementById('e-place').value.trim(),
     attendees:getSelectedChips('e-attendees'),
@@ -1701,6 +1715,7 @@ function openDayModal(dateStr){
     // 門徒参り
     if(scheds.length>0){
       html+=`<div class="section-title">門徒参り（${scheds.length}件）</div>`;
+      scheds.sort((a,b)=>(a.time||"99:99").localeCompare(b.time||"99:99"));
       scheds.forEach(s=>{
         const c=getContact(s.contactId);
         const cv=getVisitsByContact(s.contactId);
@@ -1711,7 +1726,7 @@ function openDayModal(dateStr){
             <span class="badge ${badgeClass(s.type)}">${s.type}</span>
             <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}">${s.status||'予定'}</span>
           </div>
-          <div style="font-size:12px;color:var(--gold)">担当: ${esc(s.monk)}</div>
+          <div style="font-size:12px;color:var(--gold)">担当: ${esc(s.monk)}${s.time?`　🕐 ${s.time}`:""}</div>
           ${s.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(s.memo)}</div>`:''}
           ${renderAttachLinks(s.attachments)}
           ${last?`<div style="margin-top:6px;padding:6px 8px;background:var(--paper-warm);border-radius:4px;font-size:11px;color:var(--ink-light)">📖 前回 ${fmtDate(last.date)}（${esc(last.monk)}）: ${esc(last.content.slice(0,50))}…</div>`:''}
@@ -1725,6 +1740,7 @@ function openDayModal(dateStr){
     // 寺院行事
     if(evs.length>0){
       html+=`<div class="section-title" style="${scheds.length>0?'margin-top:16px':''}">寺院行事（${evs.length}件）</div>`;
+      evs.sort((a,b)=>(a.time||"99:99").localeCompare(b.time||"99:99"));
       evs.forEach(e=>{
         const attendeeStr=(e.attendees||[]).join('・')||'未定';
         html+=`<div class="card" style="margin-bottom:10px;border-left:3px solid #9b59b6">
@@ -1734,7 +1750,7 @@ function openDayModal(dateStr){
             <span class="badge ${e.status==='完了'?'badge-done':'badge-scheduled'}">${e.status||'予定'}</span>
           </div>
           ${e.place?`<div style="font-size:12px;color:var(--ink-light)">📍 ${esc(e.place)}</div>`:''}
-          <div style="font-size:12px;color:var(--gold);margin-top:2px">参加: ${esc(attendeeStr)}</div>
+          <div style="font-size:12px;color:var(--gold);margin-top:2px">参加: ${esc(attendeeStr)}${e.time?`　🕐 ${e.time}`:""}</div>
           ${e.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(e.memo)}</div>`:''}
           ${renderAttachLinks(e.attachments)}
           <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
