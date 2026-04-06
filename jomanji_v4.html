@@ -810,9 +810,9 @@ async function loadFromSheet(){
     if(d.contacts&&d.contacts.length)    state.contacts    =d.contacts.map(c=>({...c,
       kinen:parseField(c.kinen,[]),tags:parseField(c.tags,[]),attachments:parseField(c.attachments,[])}));
     if(d.visits&&d.visits.length)        state.visits      =d.visits.map(v=>({...v,date:normDate(v.date),
-      attachments:parseField(v.attachments,[])}));
+      monk:parseField(v.monk,[]),attachments:parseField(v.attachments,[])}));
     if(d.schedules&&d.schedules.length)  state.schedules   =d.schedules.map(s=>({...s,date:normDate(s.date),
-      attachments:parseField(s.attachments,[])}));
+      monk:parseField(s.monk,[]),attachments:parseField(s.attachments,[])}));
     if(d.templeEvents&&d.templeEvents.length) state.templeEvents=d.templeEvents.map(e=>({...e,date:normDate(e.date),
       attendees:parseField(e.attendees,[]),attachments:parseField(e.attachments,[]),records:parseField(e.records,[])}));
     renderAll();
@@ -886,6 +886,7 @@ function today(){return new Date().toISOString().slice(0,10);}
 function normDate(d){if(!d)return"";return String(d).replace(/\//g,"-").slice(0,10);}
 function parseLocalDate(d){if(!d)return null;const p=String(d).slice(0,10).split("-");return p.length===3?{y:+p[0],m:+p[1],day:+p[2]}:null;}
 function parseField(v,def){if(v===null||v===undefined||v==="")return def;if(typeof v==="string"){try{return JSON.parse(v);}catch(e){return def;}}return v;}
+function monkStr(monk){if(!monk)return"";if(Array.isArray(monk))return monk.join("・");return String(monk);}
 function fmtDate(d){const p=parseLocalDate(d);if(!p)return"";return`${p.m}月${p.day}日`;}
 function fmtFull(d){const p=parseLocalDate(d);if(!p)return"";return`${p.y}年${p.m}月${p.day}日`;}
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -1093,7 +1094,7 @@ function schedCard(s,faded){
   const cv=getVisitsByContact(s.contactId);
   const last=cv[0];
   const dp=parseLocalDate(s.date);
-  const prev=last?`<div class="scard-prev">📖 前回 ${fmtDate(last.date)}（${esc(last.monk)}）: ${esc(last.content.slice(0,40))}…</div>`:"";
+  const prev=last?`<div class="scard-prev">📖 前回 ${fmtDate(last.date)}（${esc(monkStr(last.monk))}）: ${esc(last.content.slice(0,40))}…</div>`:"";
   return`<div class="card${faded?" faded":""}">
     <div class="scard">
       <div class="scard-date"><div class="scard-day">${dp?dp.day:""}</div><div class="scard-month">${dp?dp.m+"月":""}</div></div>
@@ -1103,7 +1104,7 @@ function schedCard(s,faded){
           <span class="badge ${badgeClass(s.type)}">${s.type}</span>
           <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}">${s.status||'予定'}</span>
         </div>
-        <div class="scard-monk">担当: ${esc(s.monk)}${s.time?`　🕐 ${s.time}`:""}</div>
+        <div class="scard-monk">担当: ${esc(monkStr(s.monk))}${s.time?`　🕐 ${s.time}`:""}</div>
         ${s.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(s.memo)}</div>`:""}
         ${renderAttachLinks(s.attachments)}
         ${prev}
@@ -1178,7 +1179,7 @@ function renderHistory(){
         <div><span style="font-weight:600;font-size:15px">${esc(c.name)}</span><span class="badge ${badgeClass(v.type)}" style="margin-left:8px">${v.type}</span></div>
         <span style="font-size:12px;color:var(--ink-light)">${fmtFull(v.date)}</span>
       </div>
-      <div style="font-size:12px;color:var(--gold);margin-bottom:4px">担当: ${esc(v.monk)}</div>
+      <div style="font-size:12px;color:var(--gold);margin-bottom:4px">担当: ${esc(monkStr(v.monk))}</div>
       <div style="font-size:13px;color:var(--ink-light);line-height:1.6">${esc(v.content.slice(0,80))}${v.content.length>80?"…":""}</div>
     </div>`;
   }).join("");
@@ -1231,7 +1232,7 @@ function openDetail(cid){
       schedHtml+=`<div style="font-size:13px;padding:6px 0;border-bottom:1px solid var(--paper-warm)">
         <span style="font-weight:600">${fmtFull(s.date)}</span>
         <span class="badge ${badgeClass(s.type)}" style="margin-left:8px">${s.type}</span>
-        <span style="margin-left:8px;color:var(--gold)">${esc(s.monk)}</span>
+        <span style="margin-left:8px;color:var(--gold)">${esc(monkStr(s.monk))}</span>
         ${s.memo?`<span style="margin-left:8px;color:var(--ink-light)">${esc(s.memo)}</span>`:""}
       </div>`;
     });
@@ -1242,7 +1243,7 @@ function openDetail(cid){
 
   let histHtml=cv.length>0
     ?`<div class="section-title" style="margin-top:16px">参拝記録（${cv.length}件）</div>`
-      +cv.map(v=>`<div class="hist-item"><div class="hist-meta">${fmtFull(v.date)} ｜ ${v.type} ｜ 担当: ${esc(v.monk)}${v.duration?` ｜ ${v.duration}分`:""}</div><div class="hist-content">${esc(v.content)}</div>${renderAttachLinks(v.attachments)}</div>`).join("")
+      +cv.map(v=>`<div class="hist-item"><div class="hist-meta">${fmtFull(v.date)} ｜ ${v.type} ｜ 担当: ${esc(monkStr(v.monk))}${v.duration?` ｜ ${v.duration}分`:""}</div><div class="hist-content">${esc(v.content)}</div>${renderAttachLinks(v.attachments)}</div>`).join("")
     :`<div class="empty"><div class="empty-icon">📖</div><div>まだ記録がありません</div></div>`;
   document.getElementById('detail-history').innerHTML=histHtml;
   openModal('modal-detail');
@@ -1264,7 +1265,7 @@ async function getAiSummary(){
   btn.innerHTML=`<span class="spinner"></span>要約中`;btn.disabled=true;
   document.getElementById('ai-box-wrap').innerHTML=`<div class="ai-box"><div class="ai-box-title">🤖 AI要約を生成中...</div></div>`;
   try{
-    const history=cv.slice(0,5).map(v=>`【${fmtFull(v.date)} ${v.type} 担当:${v.monk}】${v.content}`).join("\n");
+    const history=cv.slice(0,5).map(v=>`【${fmtFull(v.date)} ${v.type} 担当:${monkStr(v.monk)}】${v.content}`).join("\n");
     const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,
@@ -1288,7 +1289,7 @@ function openVisitModal(contactId,visitId,prefill){
   document.getElementById('v-duration').value="";
   document.getElementById('v-content').value="";
   makeChips('v-type-chips',VISIT_TYPES,prefill?.type||"月参り",()=>{},'v-type');
-  makeChips('v-monk-chips',MONKS,prefill?.monk||state.currentUser,()=>{},'v-monk');
+  makeChips('v-monk-chips',MONKS,prefill?.monk||(Array.isArray(prefill?.monk)?prefill.monk:[state.currentUser]),()=>{},'v-monk',true);
   renderAttachRows('v-attach-rows', prefill?.attachments||[]);
   openModal('modal-visit');
 }
@@ -1302,7 +1303,7 @@ function saveVisit(){
   if(!contactId){alert("門徒を選択してください");return;}
   if(!content){alert("訪問内容を入力してください");return;}
   const visit={id:uid(),contactId,date:document.getElementById('v-date').value,
-    type:getSelectedChip('v-type'),monk:getSelectedChip('v-monk'),content,
+    type:getSelectedChip('v-type'),monk:getSelectedChips('v-monk'),content,
     duration:parseInt(document.getElementById('v-duration').value)||null,
     attachments:getAttachments('v-attach-rows')};
   state.visits.unshift(visit);
@@ -1323,7 +1324,7 @@ function openScheduleModal(idOrObj){
   document.getElementById('s-time').value=s?.time||"";
   document.getElementById('s-memo').value=s?.memo||"";
   makeChips('s-type-chips',VISIT_TYPES,s?.type||"月参り",()=>{},'s-type');
-  makeChips('s-monk-chips',MONKS,s?.monk||state.currentUser,()=>{},'s-monk');
+  makeChips('s-monk-chips',MONKS,Array.isArray(s?.monk)?s.monk:(s?.monk?[s.monk]:[state.currentUser]),()=>{},'s-monk',true);
   makeChips('s-status-chips',STATUSES,s?.status||"予定",()=>{},'s-status');
   renderAttachRows('s-attach-rows', s?.attachments||[]);
   openModal('modal-schedule');
@@ -1335,7 +1336,7 @@ function saveSchedule(){
   if(!date){alert("日付を入力してください");return;}
   const s={id:state.editingScheduleId||uid(),contactId,date,
     time:document.getElementById('s-time').value||"",
-    type:getSelectedChip('s-type'),monk:getSelectedChip('s-monk'),
+    type:getSelectedChip('s-type'),monk:getSelectedChips('s-monk'),
     status:getSelectedChip('s-status'),memo:document.getElementById('s-memo').value.trim(),
     attachments:getAttachments('s-attach-rows')};
   if(state.editingScheduleId){state.schedules=state.schedules.map(x=>x.id===state.editingScheduleId?s:x);}
@@ -1422,7 +1423,7 @@ function openEventDetail(eid){
   const recs=e.records||[];
   document.getElementById('evd-records').innerHTML=recs.length>0
     ?`<div class="section-title" style="margin-top:12px">記録（${recs.length}件）</div>`
-      +recs.map(r=>`<div class="hist-item"><div class="hist-meta">${fmtFull(r.date)} ｜ 記録者: ${esc(r.monk)}</div><div class="hist-content">${esc(r.content)}</div></div>`).join("")
+      +recs.map(r=>`<div class="hist-item"><div class="hist-meta">${fmtFull(r.date)} ｜ 記録者: ${esc(monkStr(r.monk))}</div><div class="hist-content">${esc(r.content)}</div></div>`).join("")
     :`<div class="empty" style="padding:16px 0"><div class="empty-icon">📝</div><div>まだ記録がありません</div></div>`;
   document.getElementById('evd-add-record-btn').onclick=()=>openEventRecordModal(eid);
   openModal('modal-event-detail');
@@ -1435,7 +1436,7 @@ function editEventDetail(){
 
 function openEventRecordModal(eid){
   state.editingEventId=eid;
-  makeChips('er-monk-chips',MONKS,state.currentUser,()=>{},'er-monk');
+  makeChips('er-monk-chips',MONKS,[state.currentUser],()=>{},'er-monk',true);
   document.getElementById('er-content').value="";
   closeModal('modal-event-detail');
   openModal('modal-event-record');
@@ -1445,7 +1446,7 @@ function saveEventRecord(){
   if(!content){alert("内容を入力してください");return;}
   const e=state.templeEvents.find(x=>x.id===state.editingEventId);if(!e)return;
   if(!e.records)e.records=[];
-  e.records.unshift({id:uid(),date:today(),monk:getSelectedChip('er-monk'),content});
+  e.records.unshift({id:uid(),date:today(),monk:getSelectedChips('er-monk'),content});
   e.status="完了";
   saveToSheet("templeEvents", e);
   closeModal('modal-event-record');
@@ -1629,7 +1630,7 @@ function renderMonthCal(){
       const allDay=[
         ...dayScheds.map(s=>({_kind:'sched',obj:s})),
         ...dayEvs.map(e=>({_kind:'event',obj:e}))
-      ];
+      ].sort((a,b)=>(a.obj.time||'99:99').localeCompare(b.obj.time||'99:99'));
       const pills=allDay.slice(0,2).map(({_kind,obj})=>{
         if(_kind==='event'){
           return`<div class="cal-event-pill cal-event-temple" onclick="event.stopPropagation();openEventDetail('${obj.id}')">🏯${esc(obj.title.slice(0,6))}</div>`;
@@ -1674,21 +1675,27 @@ function renderWeekCal(){
     const dateStr=d.toISOString().slice(0,10);
     const isToday=dateStr===todayStr;
     const numCls=isToday?'today-num':i===6?'sun':i===5?'sat':'';
-    const dayScheds=schedules.filter(s=>s.date===dateStr);
-    const dayEvs=tevents.filter(e=>e.date===dateStr);
-    const schedHtml=dayScheds.map(s=>{
-      const c=getContact(s.contactId);
-      const ec=s.type==='月参り'?'week-event-monthly':s.type==='法事'?'week-event-hooji':'week-event-other';
-      return`<div class="week-event ${ec}" onclick="openDetail('${s.contactId}')">
-        <div class="week-event-name">${esc(c.name)} <span style="font-weight:400;font-size:11px">${s.type}</span></div>
-        <div class="week-event-monk">担当: ${esc(s.monk)}</div>
+    const dayScheds=[...schedules.filter(s=>s.date===dateStr)].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+    const dayEvs=[...tevents.filter(e=>e.date===dateStr)].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+    const allItems=[
+      ...dayScheds.map(s=>({_kind:'sched',obj:s})),
+      ...dayEvs.map(e=>({_kind:'event',obj:e}))
+    ].sort((a,b)=>(a.obj.time||'99:99').localeCompare(b.obj.time||'99:99'));
+    const schedHtml=allItems.map(({_kind,obj})=>{
+      if(_kind==='event'){
+        return`<div class="week-event week-event-temple" onclick="openEventDetail('${obj.id}')">
+          <div class="week-event-name">🏯 ${esc(obj.title)}${obj.time?` <span style="font-weight:400;font-size:10px">🕐${obj.time}</span>`:''}</div>
+          <div class="week-event-monk">参加: ${(obj.attendees||[]).join('・')||'未定'}</div>
+        </div>`;
+      }
+      const c=getContact(obj.contactId);
+      const ec=obj.type==='月参り'?'week-event-monthly':obj.type==='法事'?'week-event-hooji':'week-event-other';
+      return`<div class="week-event ${ec}" onclick="openDetail('${obj.contactId}')">
+        <div class="week-event-name">${esc(c.name)} <span style="font-weight:400;font-size:11px">${obj.type}</span>${obj.time?` <span style="font-weight:400;font-size:10px">🕐${obj.time}</span>`:''}</div>
+        <div class="week-event-monk">担当: ${esc(Array.isArray(obj.monk)?obj.monk.join('・'):obj.monk||'')}</div>
       </div>`;
     }).join('');
-    const evHtml=dayEvs.map(e=>`
-      <div class="week-event week-event-temple" onclick="openEventDetail('${e.id}')">
-        <div class="week-event-name">🏯 ${esc(e.title)}</div>
-        <div class="week-event-monk">参加: ${(e.attendees||[]).join('・')||'未定'}</div>
-      </div>`).join('');
+    const evHtml='';
     const events=schedHtml+evHtml;
     html+=`<div class="week-day-row">
       <div class="week-day-header" onclick="openDayModal('${dateStr}')">
@@ -1726,10 +1733,10 @@ function openDayModal(dateStr){
             <span class="badge ${badgeClass(s.type)}">${s.type}</span>
             <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}">${s.status||'予定'}</span>
           </div>
-          <div style="font-size:12px;color:var(--gold)">担当: ${esc(s.monk)}${s.time?`　🕐 ${s.time}`:""}</div>
+          <div style="font-size:12px;color:var(--gold)">担当: ${esc(monkStr(s.monk))}${s.time?`　🕐 ${s.time}`:""}</div>
           ${s.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(s.memo)}</div>`:''}
           ${renderAttachLinks(s.attachments)}
-          ${last?`<div style="margin-top:6px;padding:6px 8px;background:var(--paper-warm);border-radius:4px;font-size:11px;color:var(--ink-light)">📖 前回 ${fmtDate(last.date)}（${esc(last.monk)}）: ${esc(last.content.slice(0,50))}…</div>`:''}
+          ${last?`<div style="margin-top:6px;padding:6px 8px;background:var(--paper-warm);border-radius:4px;font-size:11px;color:var(--ink-light)">📖 前回 ${fmtDate(last.date)}（${esc(monkStr(last.monk))}）: ${esc(last.content.slice(0,50))}…</div>`:''}
           <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
             <button class="btn btn-outline btn-sm" onclick="closeModal('modal-day');openScheduleModal('${s.id}')">編集</button>
             ${s.status!=='完了'?`<button class="btn btn-gold btn-sm" onclick="closeModal('modal-day');openVisitFromSched('${s.id}')">✓ 記録追加</button>`:''}
