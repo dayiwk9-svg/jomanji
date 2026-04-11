@@ -1642,13 +1642,13 @@ function renderMonthCal(){
   while(cells.length%7!==0)cells.push({d:cells.length-daysInMonth-firstDay+1,m:m+1,y:m===11?y+1:y,other:true});
   for(let w=0;w<cells.length/7;w++){
     html+=`<div class="cal-week">`;
-    for(let d=0;d<7;d++){
-      const cell=cells[w*7+d];
+    for(let dow=0;dow<7;dow++){
+      const cell=cells[w*7+dow];
       const dateStr=`${cell.y}-${String(cell.m+1).padStart(2,'0')}-${String(cell.d).padStart(2,'0')}`;
       const isToday=dateStr===todayStr;
       const holiday=getHoliday(dateStr);
       const isHoliday=!!holiday;
-      const cls=['cal-cell',cell.other?'other-month':'',isToday?'today':'',d===0||isHoliday?'sunday':'',d===6?'saturday':''].filter(Boolean).join(' ');
+      const cls=['cal-cell',cell.other?'other-month':'',isToday?'today':'',dow===0||isHoliday?'sunday':'',dow===6?'saturday':''].filter(Boolean).join(' ');
       const dayScheds=schedules.filter(s=>s.date===dateStr);
       const dayEvs=tevents.filter(e=>e.date===dateStr);
       const allDay=[
