@@ -1602,6 +1602,33 @@ function getCalEvents(){
 }
 function renderCalendar(){if(state.calView==='month')renderMonthCal();else renderWeekCal();}
 
+// ==================== 祝日データ ====================
+const HOLIDAYS = {
+  // 2025年
+  "2025-01-01":"元日","2025-01-13":"成人の日","2025-02-11":"建国記念の日",
+  "2025-02-23":"天皇誕生日","2025-02-24":"振替休日","2025-03-20":"春分の日",
+  "2025-04-29":"昭和の日","2025-05-03":"憲法記念日","2025-05-04":"みどりの日",
+  "2025-05-05":"こどもの日","2025-05-06":"振替休日","2025-07-21":"海の日",
+  "2025-08-11":"山の日","2025-09-15":"敬老の日","2025-09-23":"秋分の日",
+  "2025-10-13":"スポーツの日","2025-11-03":"文化の日","2025-11-23":"勤労感謝の日",
+  "2025-11-24":"振替休日",
+  // 2026年
+  "2026-01-01":"元日","2026-01-12":"成人の日","2026-02-11":"建国記念の日",
+  "2026-02-23":"天皇誕生日","2026-03-20":"春分の日","2026-04-29":"昭和の日",
+  "2026-05-03":"憲法記念日","2026-05-04":"みどりの日","2026-05-05":"こどもの日",
+  "2026-05-06":"振替休日","2026-07-20":"海の日","2026-08-11":"山の日",
+  "2026-09-21":"敬老の日","2026-09-22":"国民の休日","2026-09-23":"秋分の日",
+  "2026-10-12":"スポーツの日","2026-11-03":"文化の日","2026-11-23":"勤労感謝の日",
+  // 2027年
+  "2027-01-01":"元日","2027-01-11":"成人の日","2027-02-11":"建国記念の日",
+  "2027-02-23":"天皇誕生日","2027-03-21":"春分の日","2027-04-29":"昭和の日",
+  "2027-05-03":"憲法記念日","2027-05-04":"みどりの日","2027-05-05":"こどもの日",
+  "2027-07-19":"海の日","2027-08-11":"山の日","2027-09-20":"敬老の日",
+  "2027-09-23":"秋分の日","2027-10-11":"スポーツの日","2027-11-03":"文化の日",
+  "2027-11-23":"勤労感謝の日",
+};
+function getHoliday(dateStr){return HOLIDAYS[dateStr]||null;}
+
 function renderMonthCal(){
   const y=state.calYear,m=state.calMonth;
   const MONTHS=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -1624,7 +1651,9 @@ function renderMonthCal(){
       const cell=cells[w*7+d];
       const dateStr=`${cell.y}-${String(cell.m+1).padStart(2,'0')}-${String(cell.d).padStart(2,'0')}`;
       const isToday=dateStr===todayStr;
-      const cls=['cal-cell',cell.other?'other-month':'',isToday?'today':'',d===0?'sunday':'',d===6?'saturday':''].filter(Boolean).join(' ');
+      const holiday=getHoliday(dateStr);
+      const isHoliday=!!holiday;
+      const cls=['cal-cell',cell.other?'other-month':'',isToday?'today':'',d===0||isHoliday?'sunday':'',d===6?'saturday':''].filter(Boolean).join(' ');
       const dayScheds=schedules.filter(s=>s.date===dateStr);
       const dayEvs=tevents.filter(e=>e.date===dateStr);
       const allDay=[
@@ -1640,7 +1669,8 @@ function renderMonthCal(){
         return`<div class="cal-event-pill ${pc}" onclick="event.stopPropagation();openDetail('${obj.contactId}')">${esc(c.name)}</div>`;
       }).join('');
       const more=allDay.length>2?`<div style="font-size:9px;color:var(--ink-light)">+${allDay.length-2}</div>`:'';
-      html+=`<div class="${cls}" onclick="openDayModal('${dateStr}')"><div class="cal-cell-day">${cell.d}</div>${pills}${more}</div>`;
+      const holidayLabel=isHoliday?`<div style="font-size:8px;color:#c0392b;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${holiday}</div>`:'';
+      html+=`<div class="${cls}" onclick="openDayModal('${dateStr}')"><div class="cal-cell-day">${cell.d}</div>${holidayLabel}${pills}${more}</div>`;
     }
     html+=`</div>`;
   }
@@ -1674,7 +1704,8 @@ function renderWeekCal(){
     const d=new Date(startDate);d.setDate(d.getDate()+i);
     const dateStr=d.toISOString().slice(0,10);
     const isToday=dateStr===todayStr;
-    const numCls=isToday?'today-num':i===6?'sun':i===5?'sat':'';
+    const holiday=getHoliday(dateStr);
+    const numCls=isToday?'today-num':i===6?'sun':(i===5||holiday)?'sun':'';
     const dayScheds=[...schedules.filter(s=>s.date===dateStr)].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     const dayEvs=[...tevents.filter(e=>e.date===dateStr)].sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     const allItems=[
@@ -1699,8 +1730,9 @@ function renderWeekCal(){
     const events=schedHtml+evHtml;
     html+=`<div class="week-day-row">
       <div class="week-day-header" onclick="openDayModal('${dateStr}')">
-        <div class="week-day-name">${DOWS[i]}</div>
+        <div class="week-day-name" style="${holiday?'color:#c0392b':''}">${DOWS[i]}</div>
         <div class="week-day-num ${numCls}">${d.getDate()}</div>
+        ${holiday?`<div style="font-size:8px;color:#c0392b;line-height:1.2">${holiday}</div>`:''}
       </div>
       <div class="week-events">${events||'<div style="color:var(--border);font-size:11px;padding:4px 0">―</div>'}</div>
     </div>`;
