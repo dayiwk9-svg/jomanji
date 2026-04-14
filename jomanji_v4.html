@@ -904,7 +904,8 @@ let state = {
 };
 
 // ==================== UTILS ====================
-function today(){return new Date().toISOString().slice(0,10);}
+function today(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function dateToStr(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function normDate(d){if(!d)return"";return String(d).replace(/\//g,"-").slice(0,10);}
 function parseLocalDate(d){if(!d)return null;const p=String(d).slice(0,10).split("-");return p.length===3?{y:+p[0],m:+p[1],day:+p[2]}:null;}
 function parseField(v,def){if(v===null||v===undefined||v==="")return def;if(typeof v==="string"){try{return JSON.parse(v);}catch(e){return def;}}return v;}
@@ -1003,7 +1004,7 @@ function proceedLogin(user){
   state.currentUser = user;
   const now=new Date(); const day=now.getDay(); const diff=day===0?-6:1-day;
   const mon=new Date(now); mon.setDate(now.getDate()+diff);
-  state.calWeekStart = mon.toISOString().slice(0,10);
+  state.calWeekStart = dateToStr(mon);
   document.getElementById('user-badge-btn').textContent = user+" ▾";
   document.getElementById('screen-login').classList.remove('active');
   document.getElementById('screen-app').classList.add('active');
@@ -1608,7 +1609,7 @@ function calMove(dir){
     if(state.calMonth<0){state.calMonth=11;state.calYear--;}
   }else{
     const d=new Date(state.calWeekStart);d.setDate(d.getDate()+dir*7);
-    state.calWeekStart=d.toISOString().slice(0,10);
+    state.calWeekStart=dateToStr(d);
   }
   renderCalendar();
 }
@@ -1683,7 +1684,7 @@ function renderWeekCal(){
   if(!state.calWeekStart){
     const now=new Date();const day=now.getDay();const diff=day===0?-6:1-day;
     const mon=new Date(now);mon.setDate(now.getDate()+diff);
-    state.calWeekStart=mon.toISOString().slice(0,10);
+    state.calWeekStart=dateToStr(mon);
   }
   const schedules=getCalSchedules();
   const tevents=getCalEvents();
@@ -1697,7 +1698,7 @@ function renderWeekCal(){
   let html=`<div>`;
   for(let i=0;i<7;i++){
     const d=new Date(startDate);d.setDate(d.getDate()+i);
-    const dateStr=d.toISOString().slice(0,10);
+    const dateStr=dateToStr(d);
     const isToday=dateStr===todayStr;
     const holiday=getHoliday(dateStr);
     const numCls=isToday?'today-num':i===6?'sun':(i===5||holiday)?'sun':'';
