@@ -388,6 +388,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div id="ai-box-wrap"></div>
     <div id="detail-history"></div>
     <button class="btn btn-outline btn-full" style="margin-top:16px" onclick="closeModal('modal-detail')">閉じる</button>
+    <button class="btn btn-danger btn-full" style="margin-top:8px" onclick="deleteContact()">🗑 この門徒を削除</button>
   </div>
 </div>
 
@@ -1296,6 +1297,26 @@ function editDetailContact(){
   const c=getContact(state.detailContactId);
   closeModal('modal-detail');
   openContactModal(c);
+}
+
+function deleteContact(){
+  const c=getContact(state.detailContactId);
+  if(!c)return;
+  const hasSchedules=state.schedules.filter(s=>s.contactId===c.id).length;
+  const hasVisits=state.visits.filter(v=>v.contactId===c.id).length;
+  let msg=`「${c.name}」を削除してよろしいですか？`;
+  if(hasSchedules||hasVisits){
+    msg+=`\n\n⚠ この門徒には予定${hasSchedules}件・記録${hasVisits}件が紐付いています。\n門徒を削除しても予定・記録のデータは残ります。`;
+  }
+  if(!confirm(msg))return;
+  state.contacts=state.contacts.filter(x=>x.id!==c.id);
+  deleteFromSheet('contacts',c.id);
+  closeModal('modal-detail');
+  renderContacts();
+  renderCalendar();
+  renderSchedule();
+  setSyncStatus(`「${c.name}」を削除しました`);
+  setTimeout(()=>setSyncStatus(""),3000);
 }
 
 // ==================== AI ====================
