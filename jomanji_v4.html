@@ -65,6 +65,11 @@ body{background:var(--paper);font-family:'Noto Sans JP',sans-serif;color:var(--i
 .btn-primary{background:var(--ink);color:var(--gold-light);}
 .btn-gold{background:var(--gold);color:white;}
 .btn-outline{background:transparent;border:1px solid var(--border);color:var(--ink-light);}
+.contact-list-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--paper-warm);}
+.contact-list-item:last-child{border-bottom:none;}
+.contact-list-item:hover,.contact-list-item.selected{background:var(--gold);color:white;}
+.contact-list-item .item-kana{font-size:10px;color:var(--ink-light);margin-top:1px;}
+.contact-list-item.selected .item-kana{color:rgba(255,255,255,0.8);}
 .btn-danger{background:var(--red);color:white;}
 .btn-green{background:var(--green);color:white;}
 .btn-sm{padding:4px 10px;font-size:11px;}
@@ -441,7 +446,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div class="modal-title" id="sched-modal-title">📅 予定を追加</div>
     <div class="form-group">
       <label class="form-label">門徒</label>
-      <select class="form-control" id="s-contact"></select>
+      <input type="text" class="form-control" id="s-contact-search" placeholder="名前で検索..." oninput="filterContactList()" autocomplete="off">
+      <div id="s-contact-list" style="max-height:160px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:4px;background:var(--paper)"></div>
+      <input type="hidden" id="s-contact">
+      <div id="s-contact-selected" style="margin-top:4px;font-size:13px;color:var(--gold);min-height:18px"></div>
     </div>
     <div class="form-group">
       <label class="form-label">日付</label>
@@ -1406,9 +1414,12 @@ function openScheduleModal(idOrObj){
   state.editingScheduleId=s?.id||null;
   document.getElementById('sched-modal-title').textContent=s?.id?"📅 予定を編集":"📅 予定を追加";
   document.getElementById('s-delete-btn').style.display=s?.id?"":"none";
-  const sel=document.getElementById('s-contact');
-  sel.innerHTML=`<option value="">選択してください</option>`
-    +state.contacts.map(c=>`<option value="${c.id}"${c.id===s?.contactId?" selected":""}>${esc(c.name)}</option>`).join("");
+  // 門徒選択を初期化
+  document.getElementById('s-contact').value=s?.contactId||"";
+  document.getElementById('s-contact-search').value="";
+  const selContact=s?.contactId?state.contacts.find(c=>c.id===s.contactId):null;
+  document.getElementById('s-contact-selected').textContent=selContact?`✓ ${selContact.name}`:"";
+  renderContactList(s?.contactId||"");
   document.getElementById('s-date').value=normDate(s?.date)||"";
   document.getElementById('s-time').value=s?.time||"";
   document.getElementById('s-memo').value=s?.memo||"";
@@ -1417,6 +1428,35 @@ function openScheduleModal(idOrObj){
   makeChips('s-status-chips',STATUSES,s?.status||"予定",()=>{},'s-status');
   renderAttachRows('s-attach-rows', s?.attachments||[]);
   openModal('modal-schedule');
+}
+
+function renderContactList(selectedId){
+  const q=document.getElementById('s-contact-search').value.trim();
+  const sorted=[...state.contacts].sort((a,b)=>{
+    const ka=(a.kana||a.name||"").replace(/\s/g,"");
+    const kb=(b.kana||b.name||"").replace(/\s/g,"");
+    return ka.localeCompare(kb,'ja');
+  });
+  const filtered=q?sorted.filter(c=>c.name.includes(q)||(c.kana||"").includes(q)):sorted;
+  const list=document.getElementById('s-contact-list');
+  if(filtered.length===0){list.innerHTML=`<div style="padding:8px 12px;font-size:12px;color:var(--ink-light)">該当なし</div>`;return;}
+  list.innerHTML=filtered.map(c=>`
+    <div class="contact-list-item${c.id===selectedId?' selected':''}" onclick="selectContact('${c.id}','${esc(c.name)}')">
+      <div>${esc(c.name)}</div>
+      ${c.kana?`<div class="item-kana">${esc(c.kana)}</div>`:''}
+    </div>`).join('');
+}
+
+function filterContactList(){
+  const currentId=document.getElementById('s-contact').value;
+  renderContactList(currentId);
+}
+
+function selectContact(id, name){
+  document.getElementById('s-contact').value=id;
+  document.getElementById('s-contact-selected').textContent=`✓ ${name}`;
+  document.getElementById('s-contact-search').value="";
+  renderContactList(id);
 }
 function saveSchedule(){
   const contactId=document.getElementById('s-contact').value;
