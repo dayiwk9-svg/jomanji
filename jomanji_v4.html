@@ -1113,7 +1113,7 @@ function renderSchedule(){
 
   // 門徒参り予定
   let scheds=[...state.schedules].sort((a,b)=>a.date.localeCompare(b.date));
-  if(state.scheduleFilter==='my')scheds=scheds.filter(s=>s.monk===state.currentUser);
+  if(state.scheduleFilter==='my')scheds=scheds.filter(s=>{const m=s.monk;return Array.isArray(m)?m.includes(state.currentUser):m===state.currentUser;});
 
   // 寺院行事予定（フィルター適用）
   let tevs=[...state.templeEvents].sort((a,b)=>a.date.localeCompare(b.date));
@@ -1721,7 +1721,7 @@ function calMove(dir){
 }
 function getCalSchedules(){
   let ss=state.schedules;
-  if(state.calFilter==='my')ss=ss.filter(s=>s.monk===state.currentUser);
+  if(state.calFilter==='my')ss=ss.filter(s=>{const m=s.monk;return Array.isArray(m)?m.includes(state.currentUser):m===state.currentUser;});
   return ss;
 }
 function getCalEvents(){
