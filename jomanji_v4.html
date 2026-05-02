@@ -472,6 +472,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <div class="chip-row" id="s-status-chips"></div>
     </div>
     <div class="form-group">
+      <label class="form-label">お勤め</label>
+      <div class="chip-row" id="s-otsutome-chips"></div>
+    </div>
+    <div class="form-group">
       <label class="form-label">メモ</label>
       <textarea class="form-control" id="s-memo" placeholder="参列者数、法要の詳細など..."></textarea>
     </div>
@@ -699,6 +703,7 @@ const MONKS = ["道純","恭子","秀章","紘子","智子","佳菜子","大信"
 const VISIT_TYPES = ["月参り","法事","葬儀","お盆","彼岸","その他"];
 const TEMPLE_EVENT_TYPES = ["六藤会","坊守会","報恩講","僧侶研修会","組会","教区研修会","新年互例会","その他行事"];
 const STATUSES = ["予定","完了","変更","キャンセル"];
+const OTSUTOME_TYPES = ["月のお勤め","正信偈","その他"];
 const HOLIDAYS = {
   "2025-01-01":"元日","2025-01-13":"成人の日","2025-02-11":"建国記念の日",
   "2025-02-23":"天皇誕生日","2025-02-24":"振替休日","2025-03-20":"春分の日",
@@ -1156,7 +1161,7 @@ function schedCard(s,faded){
           <span class="badge ${badgeClass(s.type)}">${s.type}</span>
           <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}">${s.status||'予定'}</span>
         </div>
-        <div class="scard-monk">担当: ${esc(monkStr(s.monk))}${s.time?`　🕐 ${s.time}`:""}</div>
+        <div class="scard-monk">担当: ${esc(monkStr(s.monk))}${s.time?`　🕐 ${s.time}`:""}${s.otsutome?`　🙏 ${esc(s.otsutome)}`:""}</div>
         ${s.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(s.memo)}</div>`:""}
         ${renderAttachLinks(s.attachments)}
         ${prev}
@@ -1289,6 +1294,7 @@ function openDetail(cid){
           <span class="badge ${badgeClass(s.type)}" style="margin-left:8px">${s.type}</span>
           <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}" style="margin-left:4px">${s.status||'予定'}</span>
           <span style="margin-left:8px;color:var(--gold)">${esc(monkStr(s.monk))}</span>
+          ${s.otsutome?`<span style="margin-left:8px;color:var(--ink-light)">🙏 ${esc(s.otsutome)}</span>`:""}
           ${s.memo?`<div style="color:var(--ink-light);margin-top:2px">${esc(s.memo)}</div>`:""}
         </div>
         <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 8px;flex-shrink:0;margin-left:8px" onclick="closeModal('modal-detail');openScheduleModal('${s.id}')">編集</button>
@@ -1305,6 +1311,7 @@ function openDetail(cid){
           <span class="badge ${badgeClass(s.type)}" style="margin-left:8px">${s.type}</span>
           <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}" style="margin-left:4px">${s.status||'予定'}</span>
           <span style="margin-left:8px;color:var(--gold)">${esc(monkStr(s.monk))}</span>
+          ${s.otsutome?`<span style="margin-left:8px;color:var(--ink-light)">🙏 ${esc(s.otsutome)}</span>`:""}
           ${s.memo?`<div style="color:var(--ink-light);margin-top:2px">${esc(s.memo)}</div>`:""}
         </div>
         <button class="btn btn-outline btn-sm" style="font-size:10px;padding:2px 8px;flex-shrink:0;margin-left:8px" onclick="closeModal('modal-detail');openScheduleModal('${s.id}')">編集</button>
@@ -1426,6 +1433,7 @@ function openScheduleModal(idOrObj){
   makeChips('s-type-chips',VISIT_TYPES,s?.type||"月参り",()=>{},'s-type');
   makeChips('s-monk-chips',MONKS,Array.isArray(s?.monk)?s.monk:(s?.monk?[s.monk]:[state.currentUser]),()=>{},'s-monk',true);
   makeChips('s-status-chips',STATUSES,s?.status||"予定",()=>{},'s-status');
+  makeChips('s-otsutome-chips',OTSUTOME_TYPES,s?.otsutome||"月のお勤め",()=>{},'s-otsutome');
   renderAttachRows('s-attach-rows', s?.attachments||[]);
   openModal('modal-schedule');
 }
@@ -1466,7 +1474,7 @@ function saveSchedule(){
   const s={id:state.editingScheduleId||uid(),contactId,date,
     time:document.getElementById('s-time').value||"",
     type:getSelectedChip('s-type'),monk:getSelectedChips('s-monk'),
-    status:getSelectedChip('s-status'),memo:document.getElementById('s-memo').value.trim(),
+    status:getSelectedChip('s-status'),otsutome:getSelectedChip('s-otsutome'),memo:document.getElementById('s-memo').value.trim(),
     attachments:getAttachments('s-attach-rows')};
   if(state.editingScheduleId){state.schedules=state.schedules.map(x=>x.id===state.editingScheduleId?s:x);}
   else state.schedules.push(s);
@@ -1867,7 +1875,7 @@ function openDayModal(dateStr){
             <span class="badge ${badgeClass(s.type)}">${s.type}</span>
             <span class="badge ${s.status==='完了'?'badge-done':'badge-scheduled'}">${s.status||'予定'}</span>
           </div>
-          <div style="font-size:12px;color:var(--gold)">担当: ${esc(monkStr(s.monk))}${s.time?`　🕐 ${s.time}`:""}</div>
+          <div style="font-size:12px;color:var(--gold)">担当: ${esc(monkStr(s.monk))}${s.time?`　🕐 ${s.time}`:""}${s.otsutome?`　🙏 ${esc(s.otsutome)}`:""}</div>
           ${s.memo?`<div style="font-size:12px;color:var(--ink-light);margin-top:4px">${esc(s.memo)}</div>`:''}
           ${renderAttachLinks(s.attachments)}
           ${last?`<div style="margin-top:6px;padding:6px 8px;background:var(--paper-warm);border-radius:4px;font-size:11px;color:var(--ink-light)">📖 前回 ${fmtDate(last.date)}（${esc(monkStr(last.monk))}）: ${esc(last.content.slice(0,50))}…</div>`:''}
