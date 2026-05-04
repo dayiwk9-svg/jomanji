@@ -1437,10 +1437,11 @@ function printCalendar(){
     for(let dow=0;dow<7;dow++){
       const cell=cells[w*7+dow];
       const dateStr=`${cell.y}-${String(cell.m+1).padStart(2,'0')}-${String(cell.d).padStart(2,'0')}`;
+      const actualDow=new Date(cell.y,cell.m,cell.d).getDay(); // 0=日,6=土
       const holiday=getHoliday(dateStr);
       const isHoliday=!!holiday;
-      const isSun=dow===0||isHoliday;
-      const isSat=dow===6;
+      const isSun=actualDow===0||isHoliday;
+      const isSat=actualDow===6;
       const isToday=dateStr===todayStr;
       const dayColor=isSun?'#c0392b':isSat?'#2563eb':'#333';
       const bgColor=cell.other?'#f5f5f5':isToday?'#fff9e6':'#fff';
