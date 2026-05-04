@@ -69,6 +69,7 @@ body{background:var(--paper);font-family:'Noto Sans JP',sans-serif;color:var(--i
 .contact-list-item:last-child{border-bottom:none;}
 .contact-list-item:hover,.contact-list-item.selected{background:var(--gold);color:white;}
 .contact-list-item .item-kana{font-size:10px;color:var(--ink-light);margin-top:1px;}
+.cal-event-pill.cal-alert{border:1px solid #e74c3c;font-weight:700;}
 .contact-list-item.selected .item-kana{color:rgba(255,255,255,0.8);}
 .btn-danger{background:var(--red);color:white;}
 .btn-green{background:var(--green);color:white;}
@@ -393,6 +394,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div id="ai-box-wrap"></div>
     <div id="detail-history"></div>
     <button class="btn btn-outline btn-full" style="margin-top:16px" onclick="closeModal('modal-detail')">閉じる</button>
+    <button class="btn btn-gold btn-full" style="margin-top:8px" onclick="openTsukiki()">🗓 月忌参り設定</button>
     <button class="btn btn-danger btn-full" style="margin-top:8px" onclick="deleteContact()">🗑 この門徒を削除</button>
   </div>
 </div>
@@ -476,8 +478,12 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <div class="chip-row" id="s-otsutome-chips"></div>
     </div>
     <div class="form-group">
+      <label class="form-label">参拝者数（任意）</label>
+      <input type="number" class="form-control" id="s-visitors" min="0" placeholder="例：3" style="width:120px">
+    </div>
+    <div class="form-group">
       <label class="form-label">メモ</label>
-      <textarea class="form-control" id="s-memo" placeholder="参列者数、法要の詳細など..."></textarea>
+      <textarea class="form-control" id="s-memo" placeholder="法要の詳細など..."></textarea>
     </div>
     <div class="form-group">
       <label class="form-label">📎 添付リンク（レジュメ・資料など　最大3件）</label>
@@ -487,6 +493,46 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <button class="btn btn-danger btn-sm" id="s-delete-btn" onclick="deleteSchedule()" style="display:none">削除</button>
       <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-schedule')">戻る</button>
       <button class="btn btn-primary" style="flex:2" onclick="saveSchedule()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: 月忌参り設定 -->
+<div class="modal-overlay" id="modal-tsukiki">
+  <div class="modal-sheet">
+    <div class="modal-title">🗓 月忌参り設定</div>
+    <div id="tsukiki-contact-name" style="font-size:15px;font-weight:600;color:var(--gold);margin-bottom:12px"></div>
+    <div class="form-group">
+      <label class="form-label">毎月の日（1〜31）</label>
+      <input type="number" class="form-control" id="tk-day" min="1" max="31" placeholder="例：15" style="width:120px" oninput="updateTsukikiPreview(getContact(state.detailContactId))">
+    </div>
+    <div class="form-group">
+      <label class="form-label">時間（固定の場合）</label>
+      <input type="time" class="form-control" id="tk-time" style="width:160px">
+    </div>
+    <div class="form-group">
+      <label class="form-label">担当者</label>
+      <div class="chip-row" id="tk-monk-chips"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">お勤め</label>
+      <div class="chip-row" id="tk-otsutome-chips"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">⚠ 忘れ防止（重要）</label>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <input type="checkbox" id="tk-alert" style="width:20px;height:20px">
+        <label for="tk-alert" style="font-size:13px">この門徒は忘れ防止アラートを表示する</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">生成する月数</label>
+      <div class="chip-row" id="tk-months-chips"></div>
+    </div>
+    <div id="tk-preview" style="font-size:12px;color:var(--ink-light);margin:8px 0;padding:8px;background:var(--paper-warm);border-radius:8px;max-height:120px;overflow-y:auto"></div>
+    <div class="modal-btn-row">
+      <button class="btn btn-outline" style="flex:1" onclick="closeModal('modal-tsukiki')">戻る</button>
+      <button class="btn btn-primary" style="flex:2" onclick="saveTsukiki()">予定を生成・保存</button>
     </div>
   </div>
 </div>
@@ -610,6 +656,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div class="form-group">
       <label class="form-label">ステータス</label>
       <div class="chip-row" id="e-status-chips"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">参拝者数（任意）</label>
+      <input type="number" class="form-control" id="e-visitors" min="0" placeholder="例：10" style="width:120px">
     </div>
     <div class="form-group">
       <label class="form-label">メモ・備考</label>
@@ -844,7 +894,8 @@ async function loadFromSheet(){
     if(!json.ok)throw new Error(json.error);
     const d=json.data;
     if(d.contacts&&d.contacts.length)    state.contacts    =d.contacts.map(c=>({...c,
-      kinen:parseField(c.kinen,[]),tags:parseField(c.tags,[]),attachments:parseField(c.attachments,[])}));
+      kinen:parseField(c.kinen,[]),tags:parseField(c.tags,[]),
+      attachments:parseField(c.attachments,[]),tsukiki:parseField(c.tsukiki,null)}));
     if(d.visits&&d.visits.length)        state.visits      =d.visits.map(v=>({...v,date:normDate(v.date),
       monk:parseField(v.monk,[]),attachments:parseField(v.attachments,[])}));
     if(d.schedules&&d.schedules.length)  state.schedules   =d.schedules.map(s=>({...s,date:normDate(s.date),
@@ -1359,7 +1410,83 @@ function deleteContact(){
   setTimeout(()=>setSyncStatus(""),3000);
 }
 
-// ==================== AI ====================
+// ==================== 月忌参り設定 ====================
+function openTsukiki(){
+  const c=getContact(state.detailContactId);
+  if(!c)return;
+  closeModal('modal-detail');
+  const tk=c.tsukiki||{};
+  document.getElementById('tsukiki-contact-name').textContent=c.name;
+  document.getElementById('tk-day').value=tk.day||"";
+  document.getElementById('tk-time').value=tk.time||"";
+  document.getElementById('tk-alert').checked=tk.alert||false;
+  makeChips('tk-monk-chips',MONKS,tk.monk?[tk.monk]:[state.currentUser],()=>{},'tk-monk',true);
+  makeChips('tk-otsutome-chips',OTSUTOME_TYPES,tk.otsutome||"月のお勤め",()=>{},'tk-otsutome');
+  makeChips('tk-months-chips',['3ヶ月','6ヶ月','12ヶ月'],tk.months||'12ヶ月',v=>{updateTsukikiPreview(c);},'tk-months');
+  updateTsukikiPreview(c);
+  openModal('modal-tsukiki');
+}
+
+function updateTsukikiPreview(c){
+  const day=parseInt(document.getElementById('tk-day').value);
+  const months=parseInt((getSelectedChip('tk-months')||'12ヶ月').replace('ヶ月',''));
+  const preview=document.getElementById('tk-preview');
+  if(!day||day<1||day>31){preview.textContent="日を入力すると生成予定が表示されます";return;}
+  const dates=generateTsukikiDates(day,months);
+  preview.innerHTML=`<div style="font-weight:600;margin-bottom:4px">生成予定（${dates.length}件）：</div>`
+    +dates.map(d=>`<div>${d}</div>`).join('');
+}
+
+function generateTsukikiDates(day,months){
+  const results=[];
+  const now=new Date();
+  for(let i=0;i<months;i++){
+    const y=now.getFullYear()+(now.getMonth()+1+i>12?Math.floor((now.getMonth()+1+i-1)/12):0);
+    const m=((now.getMonth()+i)%12)+1;
+    const lastDay=new Date(y,m,0).getDate();
+    const actualDay=Math.min(day,lastDay);
+    const dateStr=`${y}-${String(m).padStart(2,'0')}-${String(actualDay).padStart(2,'0')}`;
+    if(dateStr>=today()) results.push(dateStr);
+  }
+  return results;
+}
+
+function saveTsukiki(){
+  const c=getContact(state.detailContactId);
+  if(!c)return;
+  const day=parseInt(document.getElementById('tk-day').value);
+  if(!day||day<1||day>31){alert("日を入力してください（1〜31）");return;}
+  const time=document.getElementById('tk-time').value||"";
+  const monk=getSelectedChips('tk-monk');
+  const otsutome=getSelectedChip('tk-otsutome');
+  const alert_=document.getElementById('tk-alert').checked;
+  const months=parseInt((getSelectedChip('tk-months')||'12ヶ月').replace('ヶ月',''));
+  // 門徒情報に月忌参り設定を保存
+  c.tsukiki={day,time,monk:monk[0]||"",otsutome,alert:alert_,months};
+  saveToSheet('contacts',c);
+  // 予定を生成
+  const dates=generateTsukikiDates(day,months);
+  let added=0,skipped=0;
+  dates.forEach(dateStr=>{
+    // 同日・同門徒・月参りの予定が既にあればスキップ
+    const exists=state.schedules.find(s=>s.contactId===c.id&&s.date===dateStr&&s.type==='月参り');
+    if(exists){skipped++;return;}
+    const s={
+      id:uid(),contactId:c.id,date:dateStr,time,
+      type:'月参り',monk,status:'予定',
+      otsutome,visitors:"",memo:"",attachments:[]
+    };
+    state.schedules.push(s);
+    saveToSheet('schedules',s);
+    added++;
+  });
+  closeModal('modal-tsukiki');
+  renderAll();
+  setSyncStatus(`✓ ${c.name}の月忌参り予定を${added}件生成（${skipped}件は既存のためスキップ）`);
+  setTimeout(()=>setSyncStatus(""),5000);
+  // 忘れ防止フラグが立っている場合は確認
+  if(alert_) alert(`⚠ ${c.name}は「忘れ防止」に設定されました。\nカレンダーでは赤枠でハイライト表示されます。`);
+}
 async function getAiSummary(){
   const cid=state.detailContactId;
   const c=getContact(cid);
@@ -1429,6 +1556,7 @@ function openScheduleModal(idOrObj){
   renderContactList(s?.contactId||"");
   document.getElementById('s-date').value=normDate(s?.date)||"";
   document.getElementById('s-time').value=s?.time||"";
+  document.getElementById('s-visitors').value=s?.visitors||"";
   document.getElementById('s-memo').value=s?.memo||"";
   makeChips('s-type-chips',VISIT_TYPES,s?.type||"月参り",()=>{},'s-type');
   makeChips('s-monk-chips',MONKS,Array.isArray(s?.monk)?s.monk:(s?.monk?[s.monk]:[state.currentUser]),()=>{},'s-monk',true);
@@ -1474,7 +1602,9 @@ function saveSchedule(){
   const s={id:state.editingScheduleId||uid(),contactId,date,
     time:document.getElementById('s-time').value||"",
     type:getSelectedChip('s-type'),monk:getSelectedChips('s-monk'),
-    status:getSelectedChip('s-status'),otsutome:getSelectedChip('s-otsutome'),memo:document.getElementById('s-memo').value.trim(),
+    status:getSelectedChip('s-status'),otsutome:getSelectedChip('s-otsutome'),
+    visitors:document.getElementById('s-visitors').value||"",
+    memo:document.getElementById('s-memo').value.trim(),
     attachments:getAttachments('s-attach-rows')};
   if(state.editingScheduleId){state.schedules=state.schedules.map(x=>x.id===state.editingScheduleId?s:x);}
   else state.schedules.push(s);
@@ -1601,6 +1731,7 @@ function openEventModal(idOrNull){
   document.getElementById('e-time').value=e?.time||"";
   document.getElementById('e-place').value=e?.place||"";
   document.getElementById('e-memo').value=e?.memo||"";
+  document.getElementById('e-visitors').value=e?.visitors||"";
   makeChips('e-type-chips',TEMPLE_EVENT_TYPES,e?.type||"六藤会",()=>{},'e-type');
   makeChips('e-attendees-chips',MONKS,e?.attendees||[state.currentUser],()=>{},'e-attendees',true);
   makeChips('e-status-chips',STATUSES,e?.status||"予定",()=>{},'e-status');
@@ -1622,6 +1753,7 @@ function saveEvent(){
     attendees:getSelectedChips('e-attendees'),
     status:getSelectedChip('e-status'),
     memo:document.getElementById('e-memo').value.trim(),
+    visitors:document.getElementById('e-visitors').value||"",
     attachments:getAttachments('e-attach-rows'),
     records:existing?.records||[]
   };
@@ -1775,8 +1907,9 @@ function renderMonthCal(){
           return`<div class="cal-event-pill cal-event-temple" onclick="event.stopPropagation();openEventDetail('${obj.id}')">🏯${esc(obj.title.slice(0,6))}</div>`;
         }
         const c=getContact(obj.contactId);
+        const isAlert=c?.tsukiki?.alert&&obj.type==='月参り';
         const pc=obj.type==='月参り'?'cal-event-monthly':obj.type==='法事'?'cal-event-hooji':'cal-event-other';
-        return`<div class="cal-event-pill ${pc}" onclick="event.stopPropagation();openDetail('${obj.contactId}')">${esc(c.name)}</div>`;
+        return`<div class="cal-event-pill ${pc}${isAlert?' cal-alert':''}" onclick="event.stopPropagation();openDetail('${obj.contactId}')">${isAlert?'⚠':''} ${esc(c.name)}</div>`;
       }).join('');
       const more=allDay.length>2?`<div style="font-size:9px;color:var(--ink-light)">+${allDay.length-2}</div>`:'';
       const holidayLabel=isHoliday?`<div style="font-size:8px;color:#c0392b;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${holiday}</div>`:'';
