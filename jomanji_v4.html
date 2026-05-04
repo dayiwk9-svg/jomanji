@@ -1450,16 +1450,31 @@ function printCalendar(){
       const dayScheds=schedules.filter(s=>s.date===dateStr).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
       const dayEvs=tevents.filter(e=>e.date===dateStr).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
 
+      // 時刻の正規化（シリアル値対応）
+      function safeTime(t){
+        if(!t)return'';
+        if(typeof t==='number'){
+          const total=Math.round(t*24*60);
+          return`${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+        }
+        const s=String(t);
+        if(s.includes('1899')||s.includes('GMT'))return'';
+        if(/^\d{1,2}:\d{2}/.test(s))return s.slice(0,5);
+        return'';
+      }
+
       let items='';
       dayEvs.forEach(e=>{
-        items+=`<div style="font-size:8px;background:#9b59b6;color:white;border-radius:2px;padding:1px 3px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${e.time?e.time+' ':''} ${e.title}</div>`;
+        const t=safeTime(e.time);
+        items+=`<div style="font-size:8px;background:#9b59b6;color:white;border-radius:2px;padding:1px 3px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${t?t+' ':''}${e.title}</div>`;
       });
       dayScheds.forEach(s=>{
         const c=getContact(s.contactId);
         const bg=s.type==='月参り'?'#e8f5e9':s.type==='法事'?'#fde8e8':'#fef9e7';
         const border=s.type==='月参り'?'#2e7d32':s.type==='法事'?'#c0392b':'#f39c12';
         const isAlert=c?.tsukiki?.alert&&s.type==='月参り';
-        items+=`<div style="font-size:8px;background:${bg};border-left:2px solid ${border};padding:1px 3px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis${isAlert?';font-weight:bold':''}">${s.time?s.time+' ':''}${isAlert?'⚠':''} ${c.name} ${s.type==='法事'?'【法事】':''}</div>`;
+        const t=safeTime(s.time);
+        items+=`<div style="font-size:8px;background:${bg};border-left:2px solid ${border};padding:1px 3px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis${isAlert?';font-weight:bold':''}">${t?t+' ':''}${isAlert?'⚠':''} ${c.name}${s.type==='法事'?'【法事】':''}</div>`;
       });
 
       tds+=`<td style="border:1px solid #ccc;vertical-align:top;padding:3px;background:${bgColor};min-width:0;width:14.28%">
@@ -1474,16 +1489,16 @@ function printCalendar(){
 <html><head><meta charset="UTF-8">
 <title>浄満寺 ${y}年${m+1}月 予定表</title>
 <style>
-  @page{size:A4 landscape;margin:10mm;}
-  body{font-family:'Hiragino Kaku Gothic Pro','Meiryo',sans-serif;margin:0;padding:0;}
-  h1{font-size:16px;text-align:center;margin:0 0 8px;border-bottom:2px solid #1a1208;padding-bottom:4px;}
-  table{width:100%;border-collapse:collapse;table-layout:fixed;}
-  th{background:#1a1208;color:#f0e6c8;font-size:11px;padding:4px;text-align:center;border:1px solid #999;}
-  td{border:1px solid #ccc;vertical-align:top;padding:3px;min-height:70px;}
-  .legend{display:flex;gap:16px;font-size:9px;margin-bottom:6px;justify-content:flex-end;}
-  .legend-item{display:flex;align-items:center;gap:4px;}
-  .legend-dot{width:10px;height:10px;border-radius:2px;}
-  @media print{button{display:none;}}
+  @page{size:A4 landscape;margin:8mm;}
+  body{font-family:'Hiragino Kaku Gothic Pro','Meiryo',sans-serif;margin:0;padding:0;font-size:8px;}
+  h1{font-size:14px;text-align:center;margin:0 0 4px;border-bottom:2px solid #1a1208;padding-bottom:3px;}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;height:calc(100vh - 60px);}
+  th{background:#1a1208;color:#f0e6c8;font-size:10px;padding:3px;text-align:center;border:1px solid #999;}
+  td{border:1px solid #ccc;vertical-align:top;padding:2px 3px;height:22mm;}
+  .legend{display:flex;gap:12px;font-size:8px;margin-bottom:4px;justify-content:flex-end;}
+  .legend-item{display:flex;align-items:center;gap:3px;}
+  .legend-dot{width:8px;height:8px;border-radius:2px;}
+  @media print{button{display:none;}table{height:calc(100% - 55px);}}
 </style>
 </head><body>
 <h1>浄満寺　${y}年${m+1}月 予定表</h1>
