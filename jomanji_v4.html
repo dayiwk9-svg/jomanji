@@ -1420,18 +1420,16 @@ function printCalendar(){
   const tevents=getCalEvents();
   const todayStr=today();
 
-  // 月のセル生成
-  const firstDay=new Date(y,m,1).getDay();
+  // 月のセル生成（日曜始まり）
+  const firstDay=new Date(y,m,1).getDay(); // 0=日曜
   const daysInMonth=new Date(y,m+1,0).getDate();
   const daysInPrev=new Date(y,m,0).getDate();
   const cells=[];
-  const startOffset=firstDay===0?6:firstDay-1;
-  for(let i=0;i<startOffset;i++) cells.push({d:daysInPrev-startOffset+1+i,m:m-1,y:m===0?y-1:y,other:true});
+  for(let i=0;i<firstDay;i++) cells.push({d:daysInPrev-firstDay+1+i,m:m-1,y:m===0?y-1:y,other:true});
   for(let i=1;i<=daysInMonth;i++) cells.push({d:i,m,y,other:false});
-  while(cells.length%7!==0) cells.push({d:cells.length-startOffset-daysInMonth+1,m:m+1,y:m===11?y+1:y,other:true});
+  while(cells.length%7!==0) cells.push({d:cells.length-firstDay-daysInMonth+1,m:m+1,y:m===11?y+1:y,other:true});
 
-  const DOWS=['月','火','水','木','金','土','日'];
-  const DOWS_FULL=['月曜','火曜','水曜','木曜','金曜','土曜','日曜'];
+  const DOWS=['日','月','火','水','木','金','土'];
 
   let rows='';
   for(let w=0;w<cells.length/7;w++){
@@ -1452,13 +1450,14 @@ function printCalendar(){
 
       // 時刻の正規化（シリアル値対応）
       function safeTime(t){
-        if(!t)return'';
+        if(!t&&t!==0)return'';
         if(typeof t==='number'){
-          const total=Math.round(t*24*60);
-          return`${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+          if(t<1){const total=Math.round(t*24*60);return`${String(Math.floor(total/60)).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;}
+          return'';
         }
-        const s=String(t);
-        if(s.includes('1899')||s.includes('GMT'))return'';
+        const s=String(t).trim();
+        // 不正な値を除外
+        if(s.includes('1899')||s.includes('GMT')||s.includes('Sat')||s.includes('Sun')||s.includes('Mon')||s.length>5)return s.slice(0,5).match(/^\d{1,2}:\d{2}$/)?s.slice(0,5):'';
         if(/^\d{1,2}:\d{2}/.test(s))return s.slice(0,5);
         return'';
       }
