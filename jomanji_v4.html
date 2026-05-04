@@ -306,9 +306,12 @@ textarea.form-control{resize:vertical;min-height:80px;}
         <button class="cal-view-btn active" id="cal-btn-month" onclick="setCalView('month')">月</button>
         <button class="cal-view-btn" id="cal-btn-week" onclick="setCalView('week')">週</button>
       </div>
-      <div class="chip-row">
-        <div class="chip selected" id="cal-filter-all" onclick="setCalFilter('all')">全員</div>
-        <div class="chip" id="cal-filter-my" onclick="setCalFilter('my')">自分</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div class="chip-row">
+          <div class="chip selected" id="cal-filter-all" onclick="setCalFilter('all')">全員</div>
+          <div class="chip" id="cal-filter-my" onclick="setCalFilter('my')">自分</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="printCalendar()" style="font-size:12px;padding:4px 10px">🖨 印刷</button>
       </div>
     </div>
     <div id="cal-body"></div>
@@ -1410,7 +1413,98 @@ function deleteContact(){
   setTimeout(()=>setSyncStatus(""),3000);
 }
 
-// ==================== 月忌参り設定 ====================
+// ==================== 印刷用カレンダー ====================
+function printCalendar(){
+  const y=state.calYear, m=state.calMonth;
+  const schedules=getCalSchedules();
+  const tevents=getCalEvents();
+  const todayStr=today();
+
+  // 月のセル生成
+  const firstDay=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const daysInPrev=new Date(y,m,0).getDate();
+  const cells=[];
+  const startOffset=firstDay===0?6:firstDay-1;
+  for(let i=0;i<startOffset;i++) cells.push({d:daysInPrev-startOffset+1+i,m:m-1,y:m===0?y-1:y,other:true});
+  for(let i=1;i<=daysInMonth;i++) cells.push({d:i,m,y,other:false});
+  while(cells.length%7!==0) cells.push({d:cells.length-startOffset-daysInMonth+1,m:m+1,y:m===11?y+1:y,other:true});
+
+  const DOWS=['月','火','水','木','金','土','日'];
+  const DOWS_FULL=['月曜','火曜','水曜','木曜','金曜','土曜','日曜'];
+
+  let rows='';
+  for(let w=0;w<cells.length/7;w++){
+    let tds='';
+    for(let dow=0;dow<7;dow++){
+      const cell=cells[w*7+dow];
+      const dateStr=`${cell.y}-${String(cell.m+1).padStart(2,'0')}-${String(cell.d).padStart(2,'0')}`;
+      const holiday=getHoliday(dateStr);
+      const isHoliday=!!holiday;
+      const isSun=dow===0||isHoliday;
+      const isSat=dow===6;
+      const isToday=dateStr===todayStr;
+      const dayColor=isSun?'#c0392b':isSat?'#2563eb':'#333';
+      const bgColor=cell.other?'#f5f5f5':isToday?'#fff9e6':'#fff';
+
+      const dayScheds=schedules.filter(s=>s.date===dateStr).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+      const dayEvs=tevents.filter(e=>e.date===dateStr).sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+
+      let items='';
+      dayEvs.forEach(e=>{
+        items+=`<div style="font-size:8px;background:#9b59b6;color:white;border-radius:2px;padding:1px 3px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${e.time?e.time+' ':''} ${e.title}</div>`;
+      });
+      dayScheds.forEach(s=>{
+        const c=getContact(s.contactId);
+        const bg=s.type==='月参り'?'#e8f5e9':s.type==='法事'?'#fde8e8':'#fef9e7';
+        const border=s.type==='月参り'?'#2e7d32':s.type==='法事'?'#c0392b':'#f39c12';
+        const isAlert=c?.tsukiki?.alert&&s.type==='月参り';
+        items+=`<div style="font-size:8px;background:${bg};border-left:2px solid ${border};padding:1px 3px;margin-bottom:1px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis${isAlert?';font-weight:bold':''}">${s.time?s.time+' ':''}${isAlert?'⚠':''} ${c.name} ${s.type==='法事'?'【法事】':''}</div>`;
+      });
+
+      tds+=`<td style="border:1px solid #ccc;vertical-align:top;padding:3px;background:${bgColor};min-width:0;width:14.28%">
+        <div style="font-size:11px;font-weight:bold;color:${dayColor};margin-bottom:2px">${cell.d}${holiday?`<span style="font-size:7px;display:block;color:#c0392b">${holiday}</span>`:''}</div>
+        ${items}
+      </td>`;
+    }
+    rows+=`<tr>${tds}</tr>`;
+  }
+
+  const html=`<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>浄満寺 ${y}年${m+1}月 予定表</title>
+<style>
+  @page{size:A4 landscape;margin:10mm;}
+  body{font-family:'Hiragino Kaku Gothic Pro','Meiryo',sans-serif;margin:0;padding:0;}
+  h1{font-size:16px;text-align:center;margin:0 0 8px;border-bottom:2px solid #1a1208;padding-bottom:4px;}
+  table{width:100%;border-collapse:collapse;table-layout:fixed;}
+  th{background:#1a1208;color:#f0e6c8;font-size:11px;padding:4px;text-align:center;border:1px solid #999;}
+  td{border:1px solid #ccc;vertical-align:top;padding:3px;min-height:70px;}
+  .legend{display:flex;gap:16px;font-size:9px;margin-bottom:6px;justify-content:flex-end;}
+  .legend-item{display:flex;align-items:center;gap:4px;}
+  .legend-dot{width:10px;height:10px;border-radius:2px;}
+  @media print{button{display:none;}}
+</style>
+</head><body>
+<h1>浄満寺　${y}年${m+1}月 予定表</h1>
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#e8f5e9;border-left:2px solid #2e7d32"></div>月参り</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#fde8e8;border-left:2px solid #c0392b"></div>法事</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#9b59b6"></div>寺院行事</div>
+  <div class="legend-item">⚠ 忘れ防止</div>
+</div>
+<table>
+  <thead><tr>${DOWS.map((d,i)=>`<th style="color:${i===0||i===6?'#ffd':''}">${d}</th>`).join('')}</tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div style="font-size:8px;color:#999;text-align:right;margin-top:4px">出力日時: ${new Date().toLocaleString('ja-JP')}</div>
+<script>window.onload=()=>window.print();<\/script>
+</body></html>`;
+
+  const win=window.open('','_blank');
+  win.document.write(html);
+  win.document.close();
+}
 function openTsukiki(){
   const c=getContact(state.detailContactId);
   if(!c)return;
