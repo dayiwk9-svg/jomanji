@@ -506,8 +506,12 @@ textarea.form-control{resize:vertical;min-height:80px;}
     <div class="modal-title">🗓 月忌参り設定</div>
     <div id="tsukiki-contact-name" style="font-size:15px;font-weight:600;color:var(--gold);margin-bottom:12px"></div>
     <div class="form-group">
-      <label class="form-label">毎月の日（1〜31）</label>
-      <input type="number" class="form-control" id="tk-day" min="1" max="31" placeholder="例：15" style="width:120px" oninput="updateTsukikiPreview(getContact(state.detailContactId))">
+      <label class="form-label">毎月の日（複数指定可）</label>
+      <div id="tk-days-tags" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input type="number" class="form-control" id="tk-day-input" min="1" max="31" placeholder="例：15" style="width:100px">
+        <button class="btn btn-outline" style="padding:6px 12px;font-size:13px" onclick="addTsukikiDay()">＋追加</button>
+      </div>
     </div>
     <div class="form-group">
       <label class="form-label">時間（固定の場合）</label>
@@ -1526,7 +1530,11 @@ function openTsukiki(){
   closeModal('modal-detail');
   const tk=c.tsukiki||{};
   document.getElementById('tsukiki-contact-name').textContent=c.name;
-  document.getElementById('tk-day').value=tk.day||"";
+  // 後方互換: 旧形式(day単数)を配列に変換
+  const initDays = tk.days ? tk.days : (tk.day ? [tk.day] : []);
+  state._tsukikiDays = [...initDays];
+  renderTsukikiDayTags();
+  document.getElementById('tk-day-input').value="";
   document.getElementById('tk-time').value=tk.time||"";
   document.getElementById('tk-alert').checked=tk.alert||false;
   makeChips('tk-monk-chips',MONKS,tk.monk?[tk.monk]:[state.currentUser],()=>{},'tk-monk',true);
@@ -1536,12 +1544,39 @@ function openTsukiki(){
   openModal('modal-tsukiki');
 }
 
+function renderTsukikiDayTags(){
+  const container=document.getElementById('tk-days-tags');
+  if(!container)return;
+  const days=state._tsukikiDays||[];
+  container.innerHTML=days.map(d=>
+    `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--gold);color:#fff;border-radius:16px;padding:4px 10px;font-size:13px;font-weight:600">
+      毎月${d}日
+      <span onclick="removeTsukikiDay(${d})" style="cursor:pointer;font-size:15px;line-height:1;margin-left:2px">×</span>
+    </span>`
+  ).join('');
+}
+function addTsukikiDay(){
+  const val=parseInt(document.getElementById('tk-day-input').value);
+  if(!val||val<1||val>31){alert("1〜31の数字を入力してください");return;}
+  if(!state._tsukikiDays) state._tsukikiDays=[];
+  if(state._tsukikiDays.includes(val)){alert(`毎月${val}日はすでに追加されています`);return;}
+  state._tsukikiDays.push(val);
+  state._tsukikiDays.sort((a,b)=>a-b);
+  document.getElementById('tk-day-input').value="";
+  renderTsukikiDayTags();
+  updateTsukikiPreview(getContact(state.detailContactId));
+}
+function removeTsukikiDay(d){
+  state._tsukikiDays=(state._tsukikiDays||[]).filter(x=>x!==d);
+  renderTsukikiDayTags();
+  updateTsukikiPreview(getContact(state.detailContactId));
+}
 function updateTsukikiPreview(c){
-  const day=parseInt(document.getElementById('tk-day').value);
+  const days=state._tsukikiDays||[];
   const months=parseInt((getSelectedChip('tk-months')||'12ヶ月').replace('ヶ月',''));
   const preview=document.getElementById('tk-preview');
-  if(!day||day<1||day>31){preview.textContent="日を入力すると生成予定が表示されます";return;}
-  const dates=generateTsukikiDates(day,months);
+  if(!days.length){preview.textContent="日を追加すると生成予定が表示されます";return;}
+  const dates=days.flatMap(d=>generateTsukikiDates(d,months)).sort();
   preview.innerHTML=`<div style="font-weight:600;margin-bottom:4px">生成予定（${dates.length}件）：</div>`
     +dates.map(d=>`<div>${d}</div>`).join('');
 }
@@ -1563,21 +1598,20 @@ function generateTsukikiDates(day,months){
 function saveTsukiki(){
   const c=getContact(state.detailContactId);
   if(!c)return;
-  const day=parseInt(document.getElementById('tk-day').value);
-  if(!day||day<1||day>31){alert("日を入力してください（1〜31）");return;}
+  const days=state._tsukikiDays||[];
+  if(!days.length){alert("日を1つ以上追加してください");return;}
   const time=document.getElementById('tk-time').value||"";
   const monk=getSelectedChips('tk-monk');
   const otsutome=getSelectedChip('tk-otsutome');
   const alert_=document.getElementById('tk-alert').checked;
   const months=parseInt((getSelectedChip('tk-months')||'12ヶ月').replace('ヶ月',''));
-  // 門徒情報に月忌参り設定を保存
-  c.tsukiki={day,time,monk:monk[0]||"",otsutome,alert:alert_,months};
+  // 門徒情報に月忌参り設定を保存（複数日）
+  c.tsukiki={days,time,monk:monk[0]||"",otsutome,alert:alert_,months};
   saveToSheet('contacts',c);
-  // 予定を生成
-  const dates=generateTsukikiDates(day,months);
+  // 全日付から予定を生成
+  const dates=days.flatMap(d=>generateTsukikiDates(d,months)).sort();
   let added=0,skipped=0;
   dates.forEach(dateStr=>{
-    // 同日・同門徒・月参りの予定が既にあればスキップ
     const exists=state.schedules.find(s=>s.contactId===c.id&&s.date===dateStr&&s.type==='月参り');
     if(exists){skipped++;return;}
     const s={
@@ -1593,7 +1627,6 @@ function saveTsukiki(){
   renderAll();
   setSyncStatus(`✓ ${c.name}の月忌参り予定を${added}件生成（${skipped}件は既存のためスキップ）`);
   setTimeout(()=>setSyncStatus(""),5000);
-  // 忘れ防止フラグが立っている場合は確認
   if(alert_) alert(`⚠ ${c.name}は「忘れ防止」に設定されました。\nカレンダーでは赤枠でハイライト表示されます。`);
 }
 async function getAiSummary(){
