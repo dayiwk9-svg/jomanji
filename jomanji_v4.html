@@ -306,15 +306,15 @@ textarea.form-control{resize:vertical;min-height:80px;}
         <button class="cal-view-btn active" id="cal-btn-month" onclick="setCalView('month')">月</button>
         <button class="cal-view-btn" id="cal-btn-week" onclick="setCalView('week')">週</button>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <div class="chip-row">
-          <div class="chip selected" id="cal-filter-all" onclick="setCalFilter('all')">全員</div>
-          <div class="chip" id="cal-filter-my" onclick="setCalFilter('my')">自分</div>
-        </div>
-        <button class="btn btn-outline btn-sm" onclick="printCalendar()" style="font-size:12px;padding:4px 10px">🖨 印刷</button>
+      <div class="chip-row">
+        <div class="chip selected" id="cal-filter-all" onclick="setCalFilter('all')">全員</div>
+        <div class="chip" id="cal-filter-my" onclick="setCalFilter('my')">自分</div>
       </div>
     </div>
     <div id="cal-body"></div>
+    <div style="text-align:center;margin-top:12px">
+      <button class="btn btn-outline" onclick="printCalendar()" style="font-size:13px;padding:8px 24px">🖨 この月を印刷</button>
+    </div>
   </div>
 
   <!-- TAB: CONTACTS -->
