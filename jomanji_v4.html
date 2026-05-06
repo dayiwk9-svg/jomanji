@@ -581,16 +581,6 @@ textarea.form-control{resize:vertical;min-height:80px;}
     </div>
 
     <div class="section-title" style="margin-top:8px">宗教情報</div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">宗派</label>
-        <input class="form-control" id="c-shu" placeholder="浄土真宗本願寺派">
-      </div>
-      <div class="form-group">
-        <label class="form-label">法名</label>
-        <input class="form-control" id="c-houmyo" placeholder="釋〇〇">
-      </div>
-    </div>
     <div class="form-group">
       <label class="form-label">墓地・納骨場所</label>
       <input class="form-control" id="c-haka" placeholder="例：○○霊園、大谷本廟 無量寿堂、自院境内 など">
@@ -1336,7 +1326,8 @@ function openDetail(cid){
   (c.kinen||[]).forEach(k=>{
     const res=calcKaiki(k.date);
     (res||[]).forEach(r=>{
-      kinenHtml+=`<div class="kinen-alert">🔔 ${esc(k.name)}様 ${r.year}年${r.month}月${r.day}日 <strong>${r.kaiki}</strong>${r.year===new Date().getFullYear()+1?' (来年)':' (今年)'}</div>`;
+      const houmyoPart=k.houmyo?`<span style="font-size:11px;color:var(--ink-light);margin-left:4px">（${esc(k.houmyo)}）</span>`:'';
+      kinenHtml+=`<div class="kinen-alert">🔔 ${esc(k.name)}様${houmyoPart} ${r.year}年${r.month}月${r.day}日 <strong>${r.kaiki}</strong>${r.year===new Date().getFullYear()+1?' (来年)':' (今年)'}</div>`;
     });
   });
   document.getElementById('detail-kinen').innerHTML=kinenHtml;
@@ -1912,8 +1903,8 @@ function deleteEvent(){
 }
 
 // ==================== CONTACT MODAL ====================
-function addKinenRow(name="",date=""){
-  state.kinenRows.push({id:uid(),name,date});
+function addKinenRow(name="",houmyo="",date=""){
+  state.kinenRows.push({id:uid(),name,houmyo,date});
   renderKinenRows();
 }
 function removeKinenRow(id){
@@ -1922,10 +1913,16 @@ function removeKinenRow(id){
 }
 function renderKinenRows(){
   document.getElementById('kinen-list-edit').innerHTML=state.kinenRows.map(r=>`
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
-      <input class="form-control" style="flex:1" placeholder="故人のお名前" value="${esc(r.name)}" oninput="updateKinenRow('${r.id}','name',this.value)">
-      <input type="date" class="form-control" style="flex:1" value="${r.date}" oninput="updateKinenRow('${r.id}','date',this.value)">
-      <button class="btn btn-danger btn-sm" onclick="removeKinenRow('${r.id}')">×</button>
+    <div style="margin-bottom:10px;padding:8px;background:var(--paper-warm);border-radius:8px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <input class="form-control" style="flex:2" placeholder="故人のお名前" value="${esc(r.name)}" oninput="updateKinenRow('${r.id}','name',this.value)">
+        <input class="form-control" style="flex:2" placeholder="法名（例：釋〇〇）" value="${esc(r.houmyo||'')}" oninput="updateKinenRow('${r.id}','houmyo',this.value)">
+        <button class="btn btn-danger btn-sm" onclick="removeKinenRow('${r.id}')">×</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label style="font-size:12px;color:var(--ink-light);white-space:nowrap">命日</label>
+        <input type="date" class="form-control" style="flex:1" value="${r.date}" oninput="updateKinenRow('${r.id}','date',this.value)">
+      </div>
     </div>`).join("");
 }
 function updateKinenRow(id,field,val){
@@ -1934,7 +1931,7 @@ function updateKinenRow(id,field,val){
 
 function openContactModal(c){
   state.editingContactId=c?.id||null;
-  state.kinenRows=(c?.kinen||[]).map(k=>({id:uid(),name:k.name,date:k.date}));
+  state.kinenRows=(c?.kinen||[]).map(k=>({id:uid(),name:k.name,houmyo:k.houmyo||"",date:k.date}));
   document.getElementById('contact-modal-title').textContent=c?.id?"🏠 門徒情報を編集":"🏠 門徒を追加";
   document.getElementById('c-name').value=c?.name||"";
   document.getElementById('c-kana').value=c?.kana||"";
@@ -1942,8 +1939,7 @@ function openContactModal(c){
   document.getElementById('c-addr').value=c?.address||"";
   document.getElementById('c-phone').value=c?.phone||"";
   document.getElementById('c-email').value=c?.email||"";
-  document.getElementById('c-shu').value=c?.shu||"";
-  document.getElementById('c-houmyo').value=c?.houmyo||"";
+
   document.getElementById('c-haka').value=c?.haka||"";
   document.getElementById('c-family').value=c?.family||"";
   document.getElementById('c-notes').value=c?.notes||"";
@@ -1962,11 +1958,9 @@ function saveContact(){
     address:document.getElementById('c-addr').value.trim(),
     phone:document.getElementById('c-phone').value.trim(),
     email:document.getElementById('c-email').value.trim(),
-    shu:document.getElementById('c-shu').value.trim(),
-    houmyo:document.getElementById('c-houmyo').value.trim(),
     haka:document.getElementById('c-haka').value.trim(),
     family:document.getElementById('c-family').value.trim(),
-    kinen:state.kinenRows.filter(r=>r.name).map(r=>({name:r.name,date:r.date})),
+    kinen:state.kinenRows.filter(r=>r.name).map(r=>({name:r.name,houmyo:r.houmyo||'',date:r.date})),
     notes:document.getElementById('c-notes').value.trim(),
     tags:getSelectedChips('c-tags'),
     attachments:getAttachments('c-attach-rows')
@@ -2200,7 +2194,7 @@ function printList(){
     <td>${esc(c.phone)}</td><td>${esc(c.email||"")}</td>
     <td>${esc(c.shu||"")}</td><td>${esc(c.houmyo||"")}</td>
     <td>${esc(c.haka||"")}</td>
-    <td>${(c.kinen||[]).map(k=>esc(k.name)+"("+fmtDate(k.date)+")").join("、")}</td>
+    <td>${(c.kinen||[]).map(k=>esc(k.name)+(k.houmyo?'・'+esc(k.houmyo):'')+"("+fmtDate(k.date)+")").join("、")}</td>
     <td>${esc(c.notes||"")}</td>
   </tr>`).join("");
   const html=`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
@@ -2225,7 +2219,7 @@ function exportExcel(){
   const rows=list.map(c=>[
     c.name,c.kana||"",c.zip||"",c.address||"",c.phone||"",c.email||"",
     c.shu||"",c.houmyo||"",c.haka||"",c.family||"",
-    (c.kinen||[]).map(k=>k.name+"("+k.date+")").join("／"),
+    (c.kinen||[]).map(k=>k.name+(k.houmyo?'・'+k.houmyo:'')+"("+k.date+")").join("／"),
     c.notes||"",(c.tags||[]).join("・")
   ]);
   // CSV with BOM for Excel Japanese support
