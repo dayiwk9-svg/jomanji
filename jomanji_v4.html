@@ -533,6 +533,10 @@ textarea.form-control{resize:vertical;min-height:80px;}
       </div>
     </div>
     <div class="form-group">
+      <label class="form-label">開始月</label>
+      <div class="chip-row" id="tk-startmonth-chips"></div>
+    </div>
+    <div class="form-group">
       <label class="form-label">生成する月数</label>
       <div class="chip-row" id="tk-months-chips"></div>
     </div>
@@ -1530,6 +1534,15 @@ function openTsukiki(){
   document.getElementById('tk-alert').checked=tk.alert||false;
   makeChips('tk-monk-chips',MONKS,tk.monk?[tk.monk]:[state.currentUser],()=>{},'tk-monk',true);
   makeChips('tk-otsutome-chips',OTSUTOME_TYPES,tk.otsutome||"月のお勤め",()=>{},'tk-otsutome');
+  // 開始月チップ（今月・来月・再来月）
+  const _now=new Date();
+  const _labels=[0,1,2].map(i=>{
+    const d=new Date(_now.getFullYear(),_now.getMonth()+i,1);
+    return `${d.getFullYear()}年${d.getMonth()+1}月`;
+  });
+  const _savedStart=tk.startMonth||_labels[0];
+  const _initStart=_labels.includes(_savedStart)?_savedStart:_labels[0];
+  makeChips('tk-startmonth-chips',_labels,_initStart,v=>{updateTsukikiPreview(c);},'tk-startmonth');
   makeChips('tk-months-chips',['3ヶ月','6ヶ月','12ヶ月'],tk.months||'12ヶ月',v=>{updateTsukikiPreview(c);},'tk-months');
   updateTsukikiPreview(c);
   openModal('modal-tsukiki');
@@ -1562,26 +1575,35 @@ function removeTsukikiDay(d){
   renderTsukikiDayTags();
   updateTsukikiPreview(getContact(state.detailContactId));
 }
+function getTsukikiStartOffset(){
+  const label=getSelectedChip('tk-startmonth')||'';
+  const now=new Date();
+  const labels=[0,1,2].map(i=>{const d=new Date(now.getFullYear(),now.getMonth()+i,1);return `${d.getFullYear()}年${d.getMonth()+1}月`;});
+  const idx=labels.indexOf(label);
+  return idx>=0?idx:0;
+}
 function updateTsukikiPreview(c){
   const days=state._tsukikiDays||[];
   const months=parseInt((getSelectedChip('tk-months')||'12ヶ月').replace('ヶ月',''));
+  const startOffset=getTsukikiStartOffset();
   const preview=document.getElementById('tk-preview');
   if(!days.length){preview.textContent="日を追加すると生成予定が表示されます";return;}
-  const dates=days.flatMap(d=>generateTsukikiDates(d,months)).sort();
+  const dates=days.flatMap(d=>generateTsukikiDates(d,months,startOffset)).sort();
   preview.innerHTML=`<div style="font-weight:600;margin-bottom:4px">生成予定（${dates.length}件）：</div>`
     +dates.map(d=>`<div>${d}</div>`).join('');
 }
 
-function generateTsukikiDates(day,months){
+function generateTsukikiDates(day,months,startOffset=0){
   const results=[];
   const now=new Date();
   for(let i=0;i<months;i++){
-    const y=now.getFullYear()+(now.getMonth()+1+i>12?Math.floor((now.getMonth()+1+i-1)/12):0);
-    const m=((now.getMonth()+i)%12)+1;
+    const totalMonth=now.getMonth()+startOffset+i;
+    const y=now.getFullYear()+Math.floor(totalMonth/12);
+    const m=(totalMonth%12)+1;
     const lastDay=new Date(y,m,0).getDate();
     const actualDay=Math.min(day,lastDay);
     const dateStr=`${y}-${String(m).padStart(2,'0')}-${String(actualDay).padStart(2,'0')}`;
-    if(dateStr>=today()) results.push(dateStr);
+    results.push(dateStr);
   }
   return results;
 }
@@ -1597,10 +1619,12 @@ function saveTsukiki(){
   const alert_=document.getElementById('tk-alert').checked;
   const months=parseInt((getSelectedChip('tk-months')||'12ヶ月').replace('ヶ月',''));
   // 門徒情報に月忌参り設定を保存（複数日）
-  c.tsukiki={days,time,monk:monk[0]||"",otsutome,alert:alert_,months};
+  const startOffset=getTsukikiStartOffset();
+  const startMonth=getSelectedChip('tk-startmonth')||'';
+  c.tsukiki={days,time,monk:monk[0]||"",otsutome,alert:alert_,months,startMonth};
   saveToSheet('contacts',c);
   // 全日付から予定を生成
-  const dates=days.flatMap(d=>generateTsukikiDates(d,months)).sort();
+  const dates=days.flatMap(d=>generateTsukikiDates(d,months,startOffset)).sort();
   let added=0,skipped=0;
   dates.forEach(dateStr=>{
     const exists=state.schedules.find(s=>s.contactId===c.id&&s.date===dateStr&&s.type==='月参り');
