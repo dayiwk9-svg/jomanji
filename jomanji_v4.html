@@ -17,7 +17,7 @@
   --border:#d4c4a0;--shadow:rgba(26,18,8,0.15);
 }
 body{background:var(--paper);font-family:'Noto Sans JP',sans-serif;color:var(--ink);-webkit-tap-highlight-color:transparent;}
-.screen{display:none;min-height:100dvh;flex-direction:column;}
+.screen{display:none;height:100dvh;flex-direction:column;overflow:hidden;}
 .screen.active{display:flex;}
 
 /* LOGIN */
@@ -38,7 +38,7 @@ body{background:var(--paper);font-family:'Noto Sans JP',sans-serif;color:var(--i
 .header-title{font-family:'Noto Serif JP',serif;font-size:18px;font-weight:600;letter-spacing:.1em;}
 .header-sub{font-size:11px;color:#a08060;margin-top:2px;}
 .user-badge{background:var(--gold);color:var(--ink);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;cursor:pointer;border:none;}
-.nav-tabs{display:flex;background:var(--ink);border-top:1px solid #333;overflow-x:auto;}
+.nav-tabs{display:flex;background:var(--ink);border-top:1px solid #333;overflow-x:auto;position:sticky;bottom:0;z-index:100;flex-shrink:0;}
 .nav-tab{flex:1;min-width:64px;padding:10px 2px;text-align:center;font-size:10px;color:#888;cursor:pointer;border:none;background:transparent;display:flex;flex-direction:column;align-items:center;gap:3px;transition:color .2s;white-space:nowrap;font-family:'Noto Sans JP',sans-serif;}
 .nav-tab.active{color:var(--gold-light);}
 .nav-tab-icon{font-size:17px;}
@@ -356,6 +356,28 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <input class="form-control search-input" id="history-search" placeholder="内容・お名前・担当で検索" oninput="renderHistory()">
     </div>
     <div id="history-list"></div>
+  </div>
+
+  <!-- TAB: TOOLS -->
+  <div id="tab-tools" class="tab-content" style="display:none;flex-direction:column;padding:0;max-width:100%;height:calc(100dvh - 90px);">
+    <div style="background:var(--paper-warm);padding:10px 12px 0 12px;flex:1;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:22px">📋</span>
+        <div>
+          <div style="font-weight:700;font-size:15px;color:var(--ink)">報恩講・永代経 準備リスト</div>
+          <div style="font-size:12px;color:var(--ink-light);margin-top:2px">秀章作成 ／ 行事前の準備確認チェックリスト</div>
+        </div>
+        <a href="https://hidemakimaki.github.io/eitaikyo-checklist/" target="_blank" class="btn btn-outline" style="margin-left:auto;font-size:12px;padding:6px 12px;text-decoration:none">↗ 別タブ</a>
+      </div>
+      <div id="eitaikyo-frame-wrap" style="border-radius:8px;overflow:hidden;border:1px solid var(--border);flex:1;display:flex;flex-direction:column;">
+        <iframe
+          id="eitaikyo-frame"
+          src="https://hidemakimaki.github.io/eitaikyo-checklist/"
+          style="width:100%;flex:1;border:none;background:#fff;min-height:400px;"
+          title="報恩講・永代経 準備リスト"
+        ></iframe>
+      </div>
+    </div>
   </div>
 
   <button class="fab" id="fab-btn" onclick="fabClick()">＋</button>
@@ -721,7 +743,17 @@ textarea.form-control{resize:vertical;min-height:80px;}
 <!-- PRINT AREA -->
 <div id="print-area" class="print-only"></div>
 
-<!-- MODAL: パスワード変更 -->
+<!-- MODAL: パスワード変更 -->        <iframe
+          id="eitaikyo-frame"
+          src="https://hidemakimaki.github.io/eitaikyo-checklist/"
+          style="width:100%;flex:1;border:none;background:#fff;min-height:400px;"
+          title="報恩講・永代経 準備リスト"
+        ></iframe>
+      </div>
+    </div>
+  </div>
+
+
 <div class="modal-overlay" id="modal-changepw">
   <div class="modal-sheet" onclick="event.stopPropagation()" style="max-width:400px">
     <div class="modal-handle"></div>
@@ -748,6 +780,7 @@ textarea.form-control{resize:vertical;min-height:80px;}
     </div>
   </div>
 </div>
+
 
 <script>
 // ==================== CONSTANTS ====================
@@ -1114,10 +1147,15 @@ function toggleEitaikyoFrame(){
   }
 }
 function switchTab(id,el){
-  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t=>{t.classList.remove('active');t.style.display='none';});
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
+  const tabEl=document.getElementById('tab-'+id);
+  tabEl.classList.add('active');
+  tabEl.style.display=(id==='tools')?'flex':'block';
   el.classList.add('active');
+  // タブ切替時に必ずスクロール位置をトップへ
+  tabEl.scrollTop=0;
+  window.scrollTo(0,0);
   const fab=document.getElementById('fab-btn');
   fab.style.display=(id==='schedule'||id==='contacts'||id==='calendar'||id==='events')?'flex':'none';
   if(id==='schedule')renderSchedule();
@@ -1527,34 +1565,6 @@ function printCalendar(){
 </table>
 <div style="font-size:8px;color:#999;text-align:right;margin-top:4px">出力日時: ${new Date().toLocaleString('ja-JP')}</div>
 <script>window.onload=()=>window.print();<\/script>
-  <!-- TAB: TOOLS -->
-  <div id="tab-tools" class="tab-content">
-    <!-- 永代経チェックリスト -->
-    <div style="background:var(--paper-warm);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <span style="font-size:22px">📋</span>
-        <div>
-          <div style="font-weight:700;font-size:15px;color:var(--ink)">報恩講・永代経 準備リスト</div>
-          <div style="font-size:12px;color:var(--ink-light);margin-top:2px">秀章作成 ／ 行事前の準備確認チェックリスト</div>
-        </div>
-        <button class="btn btn-outline" style="margin-left:auto;font-size:12px;padding:6px 12px" onclick="toggleEitaikyoFrame()">開く／閉じる</button>
-      </div>
-      <div id="eitaikyo-frame-wrap" style="display:none;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
-        <iframe
-          id="eitaikyo-frame"
-          src="about:blank"
-          data-src="https://hidemakimaki.github.io/eitaikyo-checklist/"
-          style="width:100%;height:80vh;border:none;background:#fff"
-          title="報恩講・永代経 準備リスト"
-        ></iframe>
-      </div>
-      <div style="margin-top:8px;text-align:right">
-        <a href="https://hidemakimaki.github.io/eitaikyo-checklist/" target="_blank" style="font-size:12px;color:var(--gold);text-decoration:none">↗ 別タブで開く</a>
-      </div>
-    </div>
-
-  </div>
-
 
 </body></html>`;
 
@@ -2319,29 +2329,26 @@ function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 </script>
   <!-- TAB: TOOLS -->
-  <div id="tab-tools" class="tab-content">
+  <div id="tab-tools" class="tab-content" style="display:none;flex-direction:column;padding:0;max-width:100%;flex:1;">
     <!-- 永代経チェックリスト -->
-    <div style="background:var(--paper-warm);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.08)">
+    <div style="background:var(--paper-warm);border-radius:0;padding:10px 12px 0 12px;flex:1;display:flex;flex-direction:column;">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <span style="font-size:22px">📋</span>
         <div>
           <div style="font-weight:700;font-size:15px;color:var(--ink)">報恩講・永代経 準備リスト</div>
           <div style="font-size:12px;color:var(--ink-light);margin-top:2px">秀章作成 ／ 行事前の準備確認チェックリスト</div>
         </div>
-        <button class="btn btn-outline" style="margin-left:auto;font-size:12px;padding:6px 12px" onclick="toggleEitaikyoFrame()">開く／閉じる</button>
+        <a href="https://hidemakimaki.github.io/eitaikyo-checklist/" target="_blank" class="btn btn-outline" style="margin-left:auto;font-size:12px;padding:6px 12px;text-decoration:none">↗ 別タブ</a>
       </div>
-      <div id="eitaikyo-frame-wrap" style="display:none;border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+      <div id="eitaikyo-frame-wrap" style="border-radius:8px;overflow:hidden;border:1px solid var(--border);flex:1;display:flex;flex-direction:column;">
         <iframe
           id="eitaikyo-frame"
-          src="about:blank"
-          data-src="https://hidemakimaki.github.io/eitaikyo-checklist/"
-          style="width:100%;height:80vh;border:none;background:#fff"
+          src="https://hidemakimaki.github.io/eitaikyo-checklist/"
+          style="width:100%;flex:1;border:none;background:#fff;min-height:400px;"
           title="報恩講・永代経 準備リスト"
         ></iframe>
       </div>
-      <div style="margin-top:8px;text-align:right">
-        <a href="https://hidemakimaki.github.io/eitaikyo-checklist/" target="_blank" style="font-size:12px;color:var(--gold);text-decoration:none">↗ 別タブで開く</a>
-      </div>
+
     </div>
 
   </div>
