@@ -372,8 +372,9 @@ textarea.form-control{resize:vertical;min-height:80px;}
       <div id="eitaikyo-frame-wrap" style="border-radius:8px;overflow:hidden;border:1px solid var(--border);flex:1;display:flex;flex-direction:column;">
         <iframe
           id="eitaikyo-frame"
-          src="https://hidemakimaki.github.io/eitaikyo-checklist/"
-          style="width:100%;flex:1;border:none;background:#fff;min-height:400px;"
+          src="about:blank"
+          data-src="https://hidemakimaki.github.io/eitaikyo-checklist/"
+          style="width:100%;flex:1;border:none;background:#fff;"
           title="報恩講・永代経 準備リスト"
         ></iframe>
       </div>
@@ -745,8 +746,9 @@ textarea.form-control{resize:vertical;min-height:80px;}
 
 <!-- MODAL: パスワード変更 -->        <iframe
           id="eitaikyo-frame"
-          src="https://hidemakimaki.github.io/eitaikyo-checklist/"
-          style="width:100%;flex:1;border:none;background:#fff;min-height:400px;"
+          src="about:blank"
+          data-src="https://hidemakimaki.github.io/eitaikyo-checklist/"
+          style="width:100%;flex:1;border:none;background:#fff;"
           title="報恩講・永代経 準備リスト"
         ></iframe>
       </div>
@@ -1153,9 +1155,13 @@ function switchTab(id,el){
   tabEl.classList.add('active');
   tabEl.style.display=(id==='tools')?'flex':'block';
   el.classList.add('active');
-  // タブ切替時に必ずスクロール位置をトップへ
   tabEl.scrollTop=0;
   window.scrollTo(0,0);
+  // ツールタブ初回表示時にiframeのsrcをセット
+  if(id==='tools'){
+    const fr=document.getElementById('eitaikyo-frame');
+    if(fr && fr.src==='about:blank') fr.src=fr.dataset.src;
+  }
   const fab=document.getElementById('fab-btn');
   fab.style.display=(id==='schedule'||id==='contacts'||id==='calendar'||id==='events')?'flex':'none';
   if(id==='schedule')renderSchedule();
@@ -2343,8 +2349,9 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
       <div id="eitaikyo-frame-wrap" style="border-radius:8px;overflow:hidden;border:1px solid var(--border);flex:1;display:flex;flex-direction:column;">
         <iframe
           id="eitaikyo-frame"
-          src="https://hidemakimaki.github.io/eitaikyo-checklist/"
-          style="width:100%;flex:1;border:none;background:#fff;min-height:400px;"
+          src="about:blank"
+          data-src="https://hidemakimaki.github.io/eitaikyo-checklist/"
+          style="width:100%;flex:1;border:none;background:#fff;"
           title="報恩講・永代経 準備リスト"
         ></iframe>
       </div>
